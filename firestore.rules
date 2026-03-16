@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read/write their own subjects
+    match /subjects/{subjectId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+    }
+    
+    // Allow authenticated users to read/write their own attendance records
+    match /attendance_records/{recordId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.user_id;
+    }
+  }
+}

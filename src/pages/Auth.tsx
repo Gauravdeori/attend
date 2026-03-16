@@ -62,7 +62,7 @@ const Auth = () => {
     
     if (error) {
       let message = error.message;
-      if (message.includes('Invalid login credentials')) {
+      if (message.includes('auth/invalid-credential') || message.includes('auth/user-not-found') || message.includes('auth/wrong-password')) {
         message = 'Invalid email or password. Please try again.';
       }
       toast({

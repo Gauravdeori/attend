@@ -4,9 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { SubjectCard } from '@/components/SubjectCard';
 import { AddSubjectDialog } from '@/components/AddSubjectDialog';
 import { EditSubjectDialog } from '@/components/EditSubjectDialog';
+import { RoutineImporter } from '@/components/RoutineImporter';
 import { AttendanceHistoryDialog } from '@/components/AttendanceHistoryDialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Subject } from '@/hooks/useAttendanceDB';
-import { GraduationCap, BookOpen, LogOut } from 'lucide-react';
+import { GraduationCap, BookOpen, LogOut, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
@@ -15,8 +17,10 @@ const Index = () => {
     subjects,
     isLoading,
     addSubject,
+    batchAddSubjects,
     updateSubject,
     deleteSubject,
+    deleteAllSubjects,
     markAttendance,
     getSubjectRecords,
     getAttendancePercentage,
@@ -59,7 +63,24 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <RoutineImporter />
               <AddSubjectDialog onAdd={handleAddSubject} />
+              {subjects.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:border-destructive/50"
+                  onClick={() => {
+                    if (window.confirm(`Delete all ${subjects.length} subjects? This cannot be undone.`)) {
+                      deleteAllSubjects();
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete All
+                </Button>
+              )}
+              <ThemeToggle />
               <Button variant="ghost" size="icon" onClick={signOut} title="Sign out">
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -77,9 +98,12 @@ const Index = () => {
             </div>
             <h2 className="text-xl font-semibold mb-2">No Subjects Yet</h2>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Add your first subject to start tracking attendance. It's quick and easy!
+              Add your first subject or import from a routine to start tracking attendance.
             </p>
-            <AddSubjectDialog onAdd={handleAddSubject} />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <RoutineImporter />
+              <AddSubjectDialog onAdd={handleAddSubject} />
+            </div>
           </div>
         ) : (
           <>
