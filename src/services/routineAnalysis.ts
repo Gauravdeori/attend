@@ -25,6 +25,12 @@ export interface AnalysisResponse {
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
+const MODELS = [
+  "google/gemini-2.0-flash-001",
+  "google/gemini-2.0-flash-lite-001",
+  "openai/gpt-4o-mini"
+];
+
 export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
   if (!OPENROUTER_API_KEY) {
     throw new Error("OpenRouter API Key is missing. Please add VITE_OPENROUTER_API_KEY to your .env file.");
@@ -80,53 +86,78 @@ export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
     IMPORTANT: Return ONLY valid JSON. No markdown backticks.
   `;
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": window.location.origin,
-      "X-Title": "MyAttendanceHub",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.0-flash-001",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${file.type};base64,${fileData}`,
+  let lastError: any = null;
+
+  for (const model of MODELS) {
+    for (let retry = 0; retry < 2; retry++) {
+      try {
+        if (retry > 0) {
+          // Semi-exponential backoff
+          await new Promise(r => setTimeout(r, 1000 * retry * retry));
+          console.log(`Retrying analysis with model ${model} (attempt ${retry + 1})...`);
+        }
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": window.location.origin,
+            "X-Title": "MyAttendanceHub",
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:${file.type};base64,${fileData}`,
+                    },
+                  },
+                ],
               },
-            },
-          ],
-        },
-      ],
-    }),
-  });
+            ],
+          }),
+        });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData?.error?.message || `OpenRouter API error: ${response.status} ${response.statusText}`
-    );
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData?.error?.message || `OpenRouter API error: ${response.status} ${response.statusText}`
+          );
+        }
+
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content || "";
+
+        // Clean the response text from any markdown blocks
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("Failed to parse AI response. Unexpected format.");
+        }
+
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        if (!parsed.schedule) parsed.schedule = [];
+        if (!parsed.subjects) parsed.subjects = [];
+
+        return parsed as AnalysisResponse;
+      } catch (err: any) {
+        console.warn(`Analysis failed with model ${model}:`, err.message);
+        lastError = err;
+        
+        // If it's a 500 error, we definitely want to try the next model or retry.
+        // If it's a 4xx error (like invalid key), we shouldn't retry.
+        if (err.message.includes("401") || err.message.includes("403")) {
+          throw err;
+        }
+      }
+    }
   }
 
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content || "";
-
-  // Clean the response text from any markdown blocks
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Failed to parse AI response. Unexpected format.");
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]);
-  
-  if (!parsed.schedule) parsed.schedule = [];
-  if (!parsed.subjects) parsed.subjects = [];
-
-  return parsed as AnalysisResponse;
+  throw new Error(`Routine analysis failed after multiple attempts. Last error: ${lastError?.message || "Internal Server Error"}. Please try again later or upload a clearer image.`);
 }
