@@ -1,3 +1,5 @@
+import type { DayOfWeek } from '@/types/attendance';
+
 export interface ExtractedSubject {
   name: string;
   code: string;
@@ -6,10 +8,19 @@ export interface ExtractedSubject {
   section?: string;
 }
 
+export interface ExtractedScheduleSlot {
+  subjectName: string;
+  subjectCode: string;
+  day: DayOfWeek;
+  startTime: string;
+  endTime: string;
+}
+
 export interface AnalysisResponse {
   semesters: string[];
   sections: string[];
   subjects: ExtractedSubject[];
+  schedule: ExtractedScheduleSlot[];
 }
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -30,31 +41,43 @@ export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
   });
 
   const prompt = `
-    Analyze this class routine and extract all UNIQUE subjects. 
-    Each subject should appear ONLY ONCE in the output, even if it appears in multiple sections or time slots.
-    
-    Return the data in a strict JSON format with the following structure:
+    Analyze this class routine/timetable image and extract:
+    1. All UNIQUE subjects (Theory and Practical are distinct).
+    2. The complete day-wise schedule mapping.
+
+    STRICT JSON FORMAT:
     {
-      "semesters": ["Semester 1", "Semester 3", ...],
-      "sections": ["Section A", "Section B", ...],
+      "semesters": ["Semester 4", ...],
+      "sections": ["Section A", ...],
       "subjects": [
         {
           "name": "Subject Name",
-          "code": "CODE123",
-          "teacherName": "Professor Name",
-          "semester": "Semester Name",
-          "section": "Section Name (optional)"
+          "code": "CODE",
+          "teacherName": "Prof Name",
+          "semester": "Semester",
+          "section": "Sec"
+        }
+      ],
+      "schedule": [
+        {
+          "subjectName": "Subject Name",
+          "subjectCode": "CODE",
+          "day": "Mon",
+          "startTime": "HH:MM",
+          "endTime": "HH:MM"
         }
       ]
     }
     
-    CRITICAL RULES:
-    - If a subject has BOTH a Theory (T) and Practical (P) component, treat them as TWO SEPARATE subjects. Append "(T)" or "(P)" to the subject name to distinguish them. For example: "Data Structures (T)" and "Data Structures (P)".
-    - If the code is the same for Theory and Practical, append "(T)" or "(P)" to the code too. For example: "CS301(T)" and "CS301(P)".
-    - Apart from Theory/Practical distinction, each unique subject must appear ONLY ONCE.
-    - If a subject appears in multiple sections, pick any one section — do NOT duplicate it.
-    - If a teacher name or code is missing, leave it as an empty string.
-    IMPORTANT: Return ONLY the JSON object, no markdown or extra text.
+    ACCURACY RULES:
+    - THEORY vs PRACTICAL: If a subject has (T) and (P) or "Theory" and "Lab" in the routine, you MUST create TWO separate entries in the "subjects" array. Add "(T)" to the theory one and "(P)" or "(L)" to the practical one in BOTH Name and Code.
+    - DEDUPLICATION: Do not list the same Subject+Code combination twice in the "subjects" array.
+    - TIME FORMAT: Always use 24-hour format (e.g., "09:00", "15:30"). If the routine says "1:00", determine if it's AM or PM based on context (usually PM for classes).
+    - DAYS: Use exactly "Mon", "Tue", "Wed", "Thu", "Fri", "Sat".
+    - HALLUCINATION GUARD: Only extract text that is actually visible. If a cell is empty or says "Lunch" / "Break", ignore it for the schedule array.
+    - NESTED CELLS: If one time slot has multiple subjects (e.g., different sections), pick the one most relevant to the provided semester/section if possible, or include all if they look like separate classes.
+    
+    IMPORTANT: Return ONLY valid JSON. No markdown backticks.
   `;
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -66,7 +89,7 @@ export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
       "X-Title": "MyAttendanceHub",
     },
     body: JSON.stringify({
-      model: "google/gemma-3-12b-it:free",
+      model: "google/gemini-2.0-flash-001",
       messages: [
         {
           role: "user",
@@ -100,5 +123,10 @@ export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
     throw new Error("Failed to parse AI response. Unexpected format.");
   }
 
-  return JSON.parse(jsonMatch[0]) as AnalysisResponse;
+  const parsed = JSON.parse(jsonMatch[0]);
+  
+  if (!parsed.schedule) parsed.schedule = [];
+  if (!parsed.subjects) parsed.subjects = [];
+
+  return parsed as AnalysisResponse;
 }

@@ -4,18 +4,19 @@ import {
   collection, 
   query, 
   where, 
-  orderBy, 
   getDocs, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
   doc, 
+  setDoc,
+  getDoc,
   serverTimestamp,
-  Timestamp,
   increment
 } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import type { ScheduleSlot, DayOfWeek, Reminder, UserSettings, BunkAnalysis } from '@/types/attendance';
 
 // Helper to prevent Firestore operations from hanging indefinitely
 function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> {
@@ -45,41 +46,66 @@ export interface AttendanceRecord {
   status: 'present' | 'absent';
 }
 
+const DEFAULT_SETTINGS: UserSettings = {
+  attendanceCriteria: 75,
+};
+
 export function useAttendanceDB() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [scheduleSlots, setScheduleSlots] = useState<ScheduleSlot[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch subjects and records
+  // ─── Fetch all data ───────────────────────────────────────────
   const fetchData = useCallback(async () => {
     if (!user) {
       setSubjects([]);
       setRecords([]);
+      setScheduleSlots([]);
+      setReminders([]);
+      setUserSettings(DEFAULT_SETTINGS);
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('Fetching subjects for user:', user.uid);
+      console.log('Fetching data for user:', user.uid);
       const subjectsQuery = query(
         collection(db, 'subjects'),
         where('user_id', '==', user.uid)
       );
-
-      console.log('Fetching records for user:', user.uid);
       const recordsQuery = query(
         collection(db, 'attendance_records'),
         where('user_id', '==', user.uid)
       );
+      const scheduleQuery = query(
+        collection(db, 'schedule_slots'),
+        where('user_id', '==', user.uid)
+      );
+      const remindersQuery = query(
+        collection(db, 'reminders'),
+        where('user_id', '==', user.uid)
+      );
 
-      console.log('Executing Firestore queries...');
-      const [subjectsSnap, recordsSnap] = await Promise.all([
+      const [subjectsSnap, recordsSnap, scheduleSnap, remindersSnap] = await Promise.all([
         getDocs(subjectsQuery),
-        getDocs(recordsQuery)
+        getDocs(recordsQuery),
+        getDocs(scheduleQuery),
+        getDocs(remindersQuery),
       ]);
-      console.log('Firestore queries completed successfully');
+
+      // Fetch user settings
+      const settingsDoc = await getDoc(doc(db, 'user_settings', user.uid));
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        setUserSettings({
+          attendanceCriteria: data.attendance_criteria ?? 75,
+        });
+      }
 
       const fetchedSubjects: Subject[] = subjectsSnap.docs.map(docData => {
         const data = docData.data();
@@ -91,7 +117,6 @@ export function useAttendanceDB() {
         } catch (e) {
           console.warn('Failed to parse created_at timestamp', e);
         }
-
         return {
           id: docData.id,
           name: data.name,
@@ -114,7 +139,6 @@ export function useAttendanceDB() {
         } catch (e) {
           console.warn('Failed to parse record date', e);
         }
-
         return {
           id: docData.id,
           subjectId: data.subject_id,
@@ -123,8 +147,34 @@ export function useAttendanceDB() {
         };
       });
 
+      const fetchedSchedule: ScheduleSlot[] = scheduleSnap.docs.map(docData => {
+        const data = docData.data();
+        return {
+          id: docData.id,
+          subjectId: data.subject_id || '',
+          subjectName: data.subject_name,
+          subjectCode: data.subject_code || '',
+          day: data.day as DayOfWeek,
+          startTime: data.start_time,
+          endTime: data.end_time,
+        };
+      });
+
+      const fetchedReminders: Reminder[] = remindersSnap.docs.map(docData => {
+        const data = docData.data();
+        return {
+          id: docData.id,
+          subjectId: data.subject_id,
+          subjectName: data.subject_name,
+          minutesBefore: data.minutes_before ?? 10,
+          enabled: data.enabled ?? true,
+        };
+      });
+
       setSubjects(fetchedSubjects);
       setRecords(fetchedRecords);
+      setScheduleSlots(fetchedSchedule);
+      setReminders(fetchedReminders);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
@@ -141,11 +191,11 @@ export function useAttendanceDB() {
     fetchData();
   }, [fetchData]);
 
+  // ─── Subject CRUD ─────────────────────────────────────────────
   const addSubject = useCallback(
     async (subject: { name: string; code: string; teacherName: string }) => {
       if (!user) return null;
 
-      // Check if subject already exists
       const key = `${subject.name.toLowerCase().trim()}|${subject.code.toLowerCase().trim()}`;
       const exists = subjects.some(
         s => `${s.name.toLowerCase().trim()}|${s.code.toLowerCase().trim()}` === key
@@ -171,13 +221,11 @@ export function useAttendanceDB() {
           created_at: serverTimestamp(),
         };
 
-        console.log('Writing new subject to Firestore...');
         const docRef = await withTimeout(
           addDoc(collection(db, 'subjects'), newSubjectData),
           10000,
-          'Firestore write timed out. Please check your Firestore security rules in the Firebase Console — writes to the "subjects" collection must be allowed for authenticated users.'
+          'Firestore write timed out. Please check your Firestore security rules.'
         );
-        console.log('Subject added with ID:', docRef.id);
 
         const newSubject: Subject = {
           id: docRef.id,
@@ -210,7 +258,6 @@ export function useAttendanceDB() {
       if (!user) return false;
 
       try {
-        // Filter out subjects that already exist in the tracker
         const existingKeys = new Set(
           subjects.map(s => `${s.name.toLowerCase().trim()}|${s.code.toLowerCase().trim()}`)
         );
@@ -227,14 +274,8 @@ export function useAttendanceDB() {
           return true;
         }
 
-        if (uniqueNewSubjects.length < newSubjects.length) {
-          const skipped = newSubjects.length - uniqueNewSubjects.length;
-          console.log(`Skipping ${skipped} duplicate subject(s) already in tracker.`);
-        }
-
         const addedSubjects: Subject[] = [];
         
-        // Using Promise.all for faster execution
         await Promise.all(uniqueNewSubjects.map(async (s) => {
           try {
             const newSubjectData = {
@@ -248,13 +289,11 @@ export function useAttendanceDB() {
               created_at: serverTimestamp(),
             };
 
-            console.log(`Attempting to add subject: ${s.name}`);
             const docRef = await withTimeout(
               addDoc(collection(db, 'subjects'), newSubjectData),
               10000,
               `Firestore write timed out for "${s.name}". Check your Firestore security rules.`
             );
-            console.log(`Successfully added subject ${s.name} with ID: ${docRef.id}`);
             
             addedSubjects.push({
               id: docRef.id,
@@ -268,8 +307,6 @@ export function useAttendanceDB() {
             });
           } catch (err: any) {
             console.error(`Failed to add subject ${s.name}:`, err);
-            // Don't throw here to allow other subjects to potentially succeed, 
-            // but we'll know if any failed.
           }
         }));
 
@@ -339,9 +376,6 @@ export function useAttendanceDB() {
 
         setSubjects((prev) => prev.filter((s) => s.id !== id));
         setRecords((prev) => prev.filter((r) => r.subjectId !== id));
-        
-        // Note: In a real app, you'd also delete all records associated with this subject.
-        // For simplicity, we just filter the local state.
       } catch (error: any) {
         console.error('Error deleting subject:', error);
         toast({
@@ -359,7 +393,6 @@ export function useAttendanceDB() {
       if (!user) return null;
 
       try {
-        // Insert attendance record
         const recordData = {
           user_id: user.uid,
           subject_id: subjectId,
@@ -370,10 +403,9 @@ export function useAttendanceDB() {
         const recordRef = await withTimeout(
           addDoc(collection(db, 'attendance_records'), recordData),
           10000,
-          'Firestore write timed out for attendance record. Check your Firestore security rules.'
+          'Firestore write timed out for attendance record.'
         );
 
-        // Update subject counts
         const subjectDocRef = doc(db, 'subjects', subjectId);
         await withTimeout(
           updateDoc(subjectDocRef, {
@@ -382,7 +414,7 @@ export function useAttendanceDB() {
             classes_absent: status === 'absent' ? increment(1) : increment(0),
           }),
           10000,
-          'Firestore update timed out for attendance counts. Check your Firestore security rules.'
+          'Firestore update timed out for attendance counts.'
         );
 
         const newRecord: AttendanceRecord = {
@@ -431,7 +463,7 @@ export function useAttendanceDB() {
             withTimeout(
               deleteDoc(doc(db, 'subjects', s.id)),
               10000,
-              `Firestore delete timed out for "${s.name}". Check your Firestore security rules.`
+              `Firestore delete timed out for "${s.name}".`
             )
           )
         );
@@ -468,9 +500,260 @@ export function useAttendanceDB() {
     return (subject.classesPresent / subject.totalClasses) * 100;
   }, []);
 
+  // ─── Schedule CRUD ────────────────────────────────────────────
+  const saveSchedule = useCallback(
+    async (slots: Omit<ScheduleSlot, 'id'>[]) => {
+      if (!user) return false;
+
+      try {
+        // Delete old schedule first
+        const oldQuery = query(
+          collection(db, 'schedule_slots'),
+          where('user_id', '==', user.uid)
+        );
+        const oldSnap = await getDocs(oldQuery);
+        await Promise.all(oldSnap.docs.map(d => deleteDoc(d.ref)));
+
+        // Add new slots
+        const addedSlots: ScheduleSlot[] = [];
+        await Promise.all(slots.map(async (slot) => {
+          const slotData = {
+            user_id: user.uid,
+            subject_id: slot.subjectId,
+            subject_name: slot.subjectName,
+            subject_code: slot.subjectCode,
+            day: slot.day,
+            start_time: slot.startTime,
+            end_time: slot.endTime,
+          };
+          const docRef = await withTimeout(
+            addDoc(collection(db, 'schedule_slots'), slotData),
+            10000,
+            'Firestore write timed out for schedule slot.'
+          );
+          addedSlots.push({ ...slot, id: docRef.id });
+        }));
+
+        setScheduleSlots(addedSlots);
+        toast({
+          title: 'Schedule Saved',
+          description: `Saved ${addedSlots.length} time slots to your schedule.`,
+        });
+        return true;
+      } catch (error: any) {
+        console.error('Error saving schedule:', error);
+        toast({
+          title: 'Error saving schedule',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    },
+    [user, toast]
+  );
+
+  const clearSchedule = useCallback(
+    async () => {
+      if (!user) return;
+      try {
+        const oldQuery = query(
+          collection(db, 'schedule_slots'),
+          where('user_id', '==', user.uid)
+        );
+        const oldSnap = await getDocs(oldQuery);
+        await Promise.all(oldSnap.docs.map(d => deleteDoc(d.ref)));
+        setScheduleSlots([]);
+      } catch (error: any) {
+        console.error('Error clearing schedule:', error);
+      }
+    },
+    [user]
+  );
+
+  // ─── Reminders CRUD ──────────────────────────────────────────
+  const saveReminder = useCallback(
+    async (reminder: Omit<Reminder, 'id'>) => {
+      if (!user) return null;
+
+      try {
+        const reminderData = {
+          user_id: user.uid,
+          subject_id: reminder.subjectId,
+          subject_name: reminder.subjectName,
+          minutes_before: reminder.minutesBefore,
+          enabled: reminder.enabled,
+        };
+
+        const docRef = await withTimeout(
+          addDoc(collection(db, 'reminders'), reminderData),
+          10000,
+          'Firestore write timed out for reminder.'
+        );
+
+        const newReminder: Reminder = { ...reminder, id: docRef.id };
+        setReminders(prev => [...prev, newReminder]);
+        return newReminder;
+      } catch (error: any) {
+        console.error('Error saving reminder:', error);
+        toast({
+          title: 'Error saving reminder',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return null;
+      }
+    },
+    [user, toast]
+  );
+
+  const updateReminder = useCallback(
+    async (id: string, updates: Partial<Pick<Reminder, 'minutesBefore' | 'enabled'>>) => {
+      if (!user) return;
+
+      try {
+        const docRef = doc(db, 'reminders', id);
+        const firestoreUpdates: any = {};
+        if (updates.minutesBefore !== undefined) firestoreUpdates.minutes_before = updates.minutesBefore;
+        if (updates.enabled !== undefined) firestoreUpdates.enabled = updates.enabled;
+
+        await withTimeout(updateDoc(docRef, firestoreUpdates), 10000, 'Firestore update timed out.');
+
+        setReminders(prev =>
+          prev.map(r => (r.id === id ? { ...r, ...updates } : r))
+        );
+      } catch (error: any) {
+        console.error('Error updating reminder:', error);
+        toast({
+          title: 'Error updating reminder',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    },
+    [user, toast]
+  );
+
+  const deleteReminder = useCallback(
+    async (id: string) => {
+      if (!user) return;
+
+      try {
+        await withTimeout(deleteDoc(doc(db, 'reminders', id)), 10000, 'Firestore delete timed out.');
+        setReminders(prev => prev.filter(r => r.id !== id));
+      } catch (error: any) {
+        console.error('Error deleting reminder:', error);
+      }
+    },
+    [user]
+  );
+
+  // ─── User Settings ───────────────────────────────────────────
+  const updateSettings = useCallback(
+    async (settings: Partial<UserSettings>) => {
+      if (!user) return;
+
+      try {
+        const docRef = doc(db, 'user_settings', user.uid);
+        const firestoreData: any = {};
+        if (settings.attendanceCriteria !== undefined) {
+          firestoreData.attendance_criteria = settings.attendanceCriteria;
+        }
+
+        await withTimeout(
+          setDoc(docRef, { ...firestoreData, user_id: user.uid }, { merge: true }),
+          10000,
+          'Firestore update timed out for settings.'
+        );
+
+        setUserSettings(prev => ({ ...prev, ...settings }));
+        toast({
+          title: 'Settings Updated',
+          description: `Attendance criteria set to ${settings.attendanceCriteria ?? prev.attendanceCriteria}%`,
+        });
+      } catch (error: any) {
+        console.error('Error updating settings:', error);
+        toast({
+          title: 'Error updating settings',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    },
+    [user, toast]
+  );
+
+  // ─── Bunk Analysis ───────────────────────────────────────────
+  const getBunkAnalysis = useCallback(
+    (subject: Subject, criteria?: number): BunkAnalysis => {
+      const threshold = criteria ?? userSettings.attendanceCriteria;
+      const { totalClasses, classesPresent } = subject;
+
+      if (totalClasses === 0) {
+        return {
+          canBunk: true,
+          bunkableClasses: 0,
+          classesNeeded: 0,
+          currentPercentage: 0,
+          status: 'safe',
+          message: 'No classes recorded yet',
+        };
+      }
+
+      const currentPercentage = (classesPresent / totalClasses) * 100;
+
+      if (currentPercentage >= threshold) {
+        // Calculate how many classes can be skipped:
+        // P / (T + n) >= threshold/100
+        // n <= P * 100 / threshold - T
+        const maxBunks = Math.floor((classesPresent * 100) / threshold - totalClasses);
+
+        if (maxBunks <= 0) {
+          return {
+            canBunk: false,
+            bunkableClasses: 0,
+            classesNeeded: 0,
+            currentPercentage,
+            status: 'warning',
+            message: "On the edge — don't skip!",
+          };
+        }
+
+        return {
+          canBunk: true,
+          bunkableClasses: maxBunks,
+          classesNeeded: 0,
+          currentPercentage,
+          status: 'safe',
+          message: `You can skip ${maxBunks} more class${maxBunks > 1 ? 'es' : ''}`,
+        };
+      } else {
+        // Below threshold: calculate classes needed to attend consecutively:
+        // (P + n) / (T + n) >= threshold/100
+        // n >= (threshold * T - 100 * P) / (100 - threshold)
+        const classesNeeded = Math.ceil(
+          (threshold * totalClasses - 100 * classesPresent) / (100 - threshold)
+        );
+
+        return {
+          canBunk: false,
+          bunkableClasses: 0,
+          classesNeeded: Math.max(classesNeeded, 1),
+          currentPercentage,
+          status: 'danger',
+          message: `Attend next ${Math.max(classesNeeded, 1)} class${classesNeeded > 1 ? 'es' : ''} to recover`,
+        };
+      }
+    },
+    [userSettings.attendanceCriteria]
+  );
+
   return {
     subjects,
     records,
+    scheduleSlots,
+    reminders,
+    userSettings,
     isLoading,
     addSubject,
     batchAddSubjects,
@@ -480,5 +763,12 @@ export function useAttendanceDB() {
     markAttendance,
     getSubjectRecords,
     getAttendancePercentage,
+    saveSchedule,
+    clearSchedule,
+    saveReminder,
+    updateReminder,
+    deleteReminder,
+    updateSettings,
+    getBunkAnalysis,
   };
 }

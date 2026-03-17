@@ -3,6 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Subject } from '@/hooks/useAttendanceDB';
+import type { BunkAnalysis } from '@/types/attendance';
 import {
   Check, 
   X, 
@@ -12,7 +13,10 @@ import {
   History,
   User,
   BookOpen,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Shield
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -35,6 +39,8 @@ import {
 interface SubjectCardProps {
   subject: Subject;
   attendancePercentage: number;
+  attendanceCriteria: number;
+  bunkAnalysis: BunkAnalysis;
   onMarkPresent: () => void;
   onMarkAbsent: () => void;
   onEdit: () => void;
@@ -45,6 +51,8 @@ interface SubjectCardProps {
 export function SubjectCard({
   subject,
   attendancePercentage,
+  attendanceCriteria,
+  bunkAnalysis,
   onMarkPresent,
   onMarkAbsent,
   onEdit,
@@ -55,17 +63,17 @@ export function SubjectCard({
   const [presentAnimation, setPresentAnimation] = useState(false);
   const [absentAnimation, setAbsentAnimation] = useState(false);
 
-  const isLowAttendance = attendancePercentage < 75 && subject.totalClasses > 0;
+  const isLowAttendance = attendancePercentage < attendanceCriteria && subject.totalClasses > 0;
 
   const handleMarkPresent = useCallback(() => {
-    if (presentAnimation) return; // Prevent double clicks
+    if (presentAnimation) return;
     setPresentAnimation(true);
     onMarkPresent();
     setTimeout(() => setPresentAnimation(false), 600);
   }, [presentAnimation, onMarkPresent]);
 
   const handleMarkAbsent = useCallback(() => {
-    if (absentAnimation) return; // Prevent double clicks
+    if (absentAnimation) return;
     setAbsentAnimation(true);
     onMarkAbsent();
     setTimeout(() => setAbsentAnimation(false), 600);
@@ -132,22 +140,49 @@ export function SubjectCard({
           {/* Attendance Percentage Display */}
           <div className="mb-4">
             <div className="flex items-end justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">Attendance</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Attendance (min {attendanceCriteria}%)
+              </span>
               <span className={`text-2xl font-bold ${
                 isLowAttendance ? 'text-warning' : 'text-foreground'
               }`}>
-                {attendancePercentage.toFixed(2)}%
+                {attendancePercentage.toFixed(1)}%
               </span>
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="relative h-2 bg-muted rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-500 ${
                   isLowAttendance ? 'bg-warning' : 'bg-primary'
                 }`}
                 style={{ width: `${Math.min(attendancePercentage, 100)}%` }}
               />
+              {/* Criteria marker */}
+              <div 
+                className="absolute top-0 bottom-0 w-0.5 bg-foreground/30"
+                style={{ left: `${attendanceCriteria}%` }}
+              />
             </div>
           </div>
+
+          {/* Bunk Analysis Badge */}
+          {subject.totalClasses > 0 && (
+            <div className={`mb-4 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
+              bunkAnalysis.status === 'safe' 
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                : bunkAnalysis.status === 'warning'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                : 'bg-red-500/10 text-red-600 dark:text-red-400'
+            }`}>
+              {bunkAnalysis.status === 'safe' ? (
+                <Shield className="h-3.5 w-3.5 flex-shrink-0" />
+              ) : bunkAnalysis.status === 'warning' ? (
+                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 flex-shrink-0" />
+              )}
+              <span>{bunkAnalysis.message}</span>
+            </div>
+          )}
 
           {/* Stats Grid */}
           <div className="grid grid-cols-3 gap-3">

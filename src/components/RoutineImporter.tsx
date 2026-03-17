@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -8,7 +8,6 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { 
   Select, 
   SelectContent, 
@@ -20,14 +19,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileUp, Loader2, Sparkles, Filter, CheckCircle2 } from "lucide-react";
-import { analyzeRoutine, AnalysisResponse, ExtractedSubject } from "@/services/routineAnalysis";
-import { useAttendanceDB } from "@/hooks/useAttendanceDB";
+import { analyzeRoutine, AnalysisResponse } from "@/services/routineAnalysis";
 import { useToast } from "@/hooks/use-toast";
+import type { ScheduleSlot, DayOfWeek } from "@/types/attendance";
 
 type Step = 'upload' | 'filter' | 'confirm';
 
-export function RoutineImporter() {
-  const { batchAddSubjects } = useAttendanceDB();
+interface RoutineImporterProps {
+  onImport: (subjects: any[], schedule: any[]) => Promise<void>;
+}
+
+export function RoutineImporter({ onImport }: RoutineImporterProps) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<Step>('upload');
@@ -71,23 +73,14 @@ export function RoutineImporter() {
     }) || [];
 
   const handleImport = async () => {
-    const rawSubjects = (analysis?.subjects || [])
-      .filter((_, idx) => selectedSubjectIds.has(idx))
-      .map(s => ({
-        name: s.name,
-        code: s.code,
-        teacherName: s.teacherName
-      }));
+    const selectedSubjects = (analysis?.subjects || [])
+      .filter((_, idx) => selectedSubjectIds.has(idx));
 
-    // Deduplicate by name+code (case-insensitive) so the same subject
-    // from multiple sections is only added once
-    const seen = new Set<string>();
-    const subjectsToImport = rawSubjects.filter(s => {
-      const key = `${s.name.toLowerCase().trim()}|${s.code.toLowerCase().trim()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    const subjectsToImport = selectedSubjects.map(s => ({
+      name: s.name,
+      code: s.code,
+      teacherName: s.teacherName
+    }));
 
     if (subjectsToImport.length === 0) {
       toast({
@@ -99,12 +92,42 @@ export function RoutineImporter() {
     }
 
     setIsImporting(true);
-    const success = await batchAddSubjects(subjectsToImport);
-    setIsImporting(false);
+    try {
+      let scheduleToImport: any[] = [];
+      
+      if (analysis?.schedule && analysis.schedule.length > 0) {
+        // Filter schedule to only include selected subjects
+        const selectedNames = new Set(selectedSubjects.map(s => s.name.toLowerCase().trim()));
+        const filteredSchedule = analysis.schedule.filter(slot =>
+          selectedNames.has(slot.subjectName.toLowerCase().trim())
+        );
 
-    if (success) {
+        scheduleToImport = filteredSchedule.map(slot => ({
+          subjectName: slot.subjectName,
+          subjectCode: slot.subjectCode,
+          day: slot.day as DayOfWeek,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }));
+      }
+
+      await onImport(subjectsToImport, scheduleToImport);
+      
+      toast({
+        title: "Import Successful",
+        description: `Imported ${subjectsToImport.length} subjects and ${scheduleToImport.length} schedule slots.`,
+      });
+      
       setIsOpen(false);
       resetState();
+    } catch (error: any) {
+      toast({
+        title: "Import Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -201,6 +224,11 @@ export function RoutineImporter() {
                     </Select>
                   </div>
                 </div>
+                {analysis.schedule && analysis.schedule.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    ✨ {analysis.schedule.length} time slots detected — schedule will be imported too!
+                  </p>
+                )}
               </div>
               <Button className="w-full" onClick={() => setStep('confirm')}>
                 Next: Verify Subjects
