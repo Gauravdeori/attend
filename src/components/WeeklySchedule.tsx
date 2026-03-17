@@ -7,14 +7,13 @@ interface WeeklyScheduleProps {
   scheduleSlots: ScheduleSlot[];
 }
 
-const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const DAY_LABELS: Record<DayOfWeek, string> = {
   Mon: 'Monday',
   Tue: 'Tuesday',
   Wed: 'Wednesday',
   Thu: 'Thursday',
   Fri: 'Friday',
-  Sat: 'Saturday',
 };
 
 // Generate consistent pastel colors for subjects
@@ -39,7 +38,7 @@ function getSubjectTextColor(name: string): string {
 export function WeeklySchedule({ scheduleSlots }: WeeklyScheduleProps) {
   const scheduleByDay = useMemo(() => {
     const grouped: Record<DayOfWeek, ScheduleSlot[]> = {
-      Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [],
+      Mon: [], Tue: [], Wed: [], Thu: [], Fri: [],
     };
     scheduleSlots.forEach(slot => {
       if (grouped[slot.day]) {
@@ -74,7 +73,7 @@ export function WeeklySchedule({ scheduleSlots }: WeeklyScheduleProps) {
   return (
     <div className="space-y-4">
       {/* Day-wise summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
         {DAYS.map(day => (
           <Card key={day} className={`p-3 text-center transition-all ${
             scheduleByDay[day].length > 0 

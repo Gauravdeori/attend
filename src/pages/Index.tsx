@@ -152,8 +152,26 @@ const Index = () => {
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
               <RoutineImporter onImport={async (newSubjects, newSchedule) => {
-                if (newSubjects.length > 0) await batchAddSubjects(newSubjects);
-                if (newSchedule.length > 0) await saveSchedule(newSchedule);
+                if (newSubjects.length > 0 || newSchedule.length > 0) {
+                  const addedSubjects = await batchAddSubjects(newSubjects);
+                  
+                  if (newSchedule.length > 0) {
+                    // Map subject names to their new IDs
+                    const scheduleWithIds = newSchedule.map(slot => {
+                      const subject = addedSubjects.find(s => 
+                        s.name.toLowerCase().trim() === slot.subjectName.toLowerCase().trim()
+                      );
+                      return {
+                        ...slot,
+                        subjectId: subject ? subject.id : ''
+                      };
+                    }).filter(slot => slot.subjectId !== ''); // Only save slots that were successfully mapped
+
+                    if (scheduleWithIds.length > 0) {
+                      await saveSchedule(scheduleWithIds);
+                    }
+                  }
+                }
               }} />
               <AddSubjectDialog onAdd={handleAddSubject} />
               {subjects.length > 0 && (
@@ -213,8 +231,26 @@ const Index = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <RoutineImporter onImport={async (newSubjects, newSchedule) => {
-                if (newSubjects.length > 0) await batchAddSubjects(newSubjects);
-                if (newSchedule.length > 0) await saveSchedule(newSchedule);
+                if (newSubjects.length > 0 || newSchedule.length > 0) {
+                  const addedSubjects = await batchAddSubjects(newSubjects);
+                  
+                  if (newSchedule.length > 0) {
+                    // Map subject names to their new IDs
+                    const scheduleWithIds = newSchedule.map(slot => {
+                      const subject = addedSubjects.find(s => 
+                        s.name.toLowerCase().trim() === slot.subjectName.toLowerCase().trim()
+                      );
+                      return {
+                        ...slot,
+                        subjectId: subject ? subject.id : ''
+                      };
+                    }).filter(slot => slot.subjectId !== ''); // Only save slots that were successfully mapped
+
+                    if (scheduleWithIds.length > 0) {
+                      await saveSchedule(scheduleWithIds);
+                    }
+                  }
+                }
               }} />
               <AddSubjectDialog onAdd={handleAddSubject} />
             </div>

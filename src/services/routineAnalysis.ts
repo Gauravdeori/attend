@@ -73,7 +73,7 @@ export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
     - THEORY vs PRACTICAL: If a subject has (T) and (P) or "Theory" and "Lab" in the routine, you MUST create TWO separate entries in the "subjects" array. Add "(T)" to the theory one and "(P)" or "(L)" to the practical one in BOTH Name and Code.
     - DEDUPLICATION: Do not list the same Subject+Code combination twice in the "subjects" array.
     - TIME FORMAT: Always use 24-hour format (e.g., "09:00", "15:30"). If the routine says "1:00", determine if it's AM or PM based on context (usually PM for classes).
-    - DAYS: Use exactly "Mon", "Tue", "Wed", "Thu", "Fri", "Sat".
+    - DAYS: Use exactly "Mon", "Tue", "Wed", "Thu", "Fri".
     - HALLUCINATION GUARD: Only extract text that is actually visible. If a cell is empty or says "Lunch" / "Break", ignore it for the schedule array.
     - NESTED CELLS: If one time slot has multiple subjects (e.g., different sections), pick the one most relevant to the provided semester/section if possible, or include all if they look like separate classes.
     

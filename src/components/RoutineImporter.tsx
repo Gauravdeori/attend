@@ -72,6 +72,17 @@ export function RoutineImporter({ onImport }: RoutineImporterProps) {
       return semMatch && secMatch;
     }) || [];
 
+  const normalizeDay = (day: string): DayOfWeek => {
+    const d = day.toLowerCase().trim();
+    if (d.includes('mon')) return 'Mon';
+    if (d.includes('tue')) return 'Tue';
+    if (d.includes('wed')) return 'Wed';
+    if (d.includes('thu')) return 'Thu';
+    if (d.includes('fri')) return 'Fri';
+    if (d.includes('sat')) return 'Sat';
+    return 'Mon'; // Default fallback
+  };
+
   const handleImport = async () => {
     const selectedSubjects = (analysis?.subjects || [])
       .filter((_, idx) => selectedSubjectIds.has(idx));
@@ -105,7 +116,7 @@ export function RoutineImporter({ onImport }: RoutineImporterProps) {
         scheduleToImport = filteredSchedule.map(slot => ({
           subjectName: slot.subjectName,
           subjectCode: slot.subjectCode,
-          day: slot.day as DayOfWeek,
+          day: normalizeDay(slot.day),
           startTime: slot.startTime,
           endTime: slot.endTime,
         }));

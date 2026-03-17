@@ -255,7 +255,7 @@ export function useAttendanceDB() {
 
   const batchAddSubjects = useCallback(
     async (newSubjects: { name: string; code: string; teacherName: string }[]) => {
-      if (!user) return false;
+      if (!user) return [];
 
       try {
         const existingKeys = new Set(
@@ -266,56 +266,71 @@ export function useAttendanceDB() {
           return !existingKeys.has(key);
         });
 
-        if (uniqueNewSubjects.length === 0) {
-          toast({
-            title: 'No new subjects',
-            description: 'All selected subjects are already in your tracker.',
-          });
-          return true;
-        }
-
         const addedSubjects: Subject[] = [];
         
-        await Promise.all(uniqueNewSubjects.map(async (s) => {
-          try {
-            const newSubjectData = {
-              user_id: user.uid,
-              name: s.name,
-              code: s.code,
-              teacher_name: s.teacherName,
-              total_classes: 0,
-              classes_present: 0,
-              classes_absent: 0,
-              created_at: serverTimestamp(),
-            };
+        if (uniqueNewSubjects.length > 0) {
+          await Promise.all(uniqueNewSubjects.map(async (s) => {
+            try {
+              const newSubjectData = {
+                user_id: user.uid,
+                name: s.name,
+                code: s.code,
+                teacher_name: s.teacherName,
+                total_classes: 0,
+                classes_present: 0,
+                classes_absent: 0,
+                created_at: serverTimestamp(),
+              };
 
-            const docRef = await withTimeout(
-              addDoc(collection(db, 'subjects'), newSubjectData),
-              10000,
-              `Firestore write timed out for "${s.name}". Check your Firestore security rules.`
+              const docRef = await withTimeout(
+                addDoc(collection(db, 'subjects'), newSubjectData),
+                10000,
+                `Firestore write timed out for "${s.name}". Check your Firestore security rules.`
+              );
+              
+              addedSubjects.push({
+                id: docRef.id,
+                name: s.name,
+                code: s.code,
+                teacherName: s.teacherName,
+                totalClasses: 0,
+                classesPresent: 0,
+                classesAbsent: 0,
+                createdAt: new Date().toISOString(),
+              });
+            } catch (err: any) {
+              console.error(`Failed to add subject ${s.name}:`, err);
+            }
+          }));
+
+          setSubjects((prev) => [...addedSubjects, ...prev]);
+        }
+
+        // Also find existing subjects that were requested but not added (already existed)
+        const allRequestedSubjects: Subject[] = [];
+        newSubjects.forEach(req => {
+          const reqKey = `${req.name.toLowerCase().trim()}|${req.code.toLowerCase().trim()}`;
+          const existing = subjects.find(s => 
+            `${s.name.toLowerCase().trim()}|${s.code.toLowerCase().trim()}` === reqKey
+          );
+          if (existing) {
+            allRequestedSubjects.push(existing);
+          } else {
+            const newlyAdded = addedSubjects.find(s => 
+              `${s.name.toLowerCase().trim()}|${s.code.toLowerCase().trim()}` === reqKey
             );
-            
-            addedSubjects.push({
-              id: docRef.id,
-              name: s.name,
-              code: s.code,
-              teacherName: s.teacherName,
-              totalClasses: 0,
-              classesPresent: 0,
-              classesAbsent: 0,
-              createdAt: new Date().toISOString(),
-            });
-          } catch (err: any) {
-            console.error(`Failed to add subject ${s.name}:`, err);
+            if (newlyAdded) allRequestedSubjects.push(newlyAdded);
           }
-        }));
-
-        setSubjects((prev) => [...addedSubjects, ...prev]);
-        toast({
-          title: 'Import Successful',
-          description: `Added ${addedSubjects.length} subjects to your schedule.`,
         });
-        return true;
+
+        if (addedSubjects.length > 0) {
+          toast({
+            title: 'Import Successful',
+            description: `Added ${addedSubjects.length} subjects to your schedule.`,
+          });
+        }
+        
+        return allRequestedSubjects;
       } catch (error: any) {
         console.error('Error batch adding subjects:', error);
         toast({
@@ -323,7 +338,7 @@ export function useAttendanceDB() {
           description: error.message,
           variant: 'destructive',
         });
-        return false;
+        return [];
       }
     },
     [user, subjects, toast]
@@ -669,7 +684,7 @@ export function useAttendanceDB() {
         setUserSettings(prev => ({ ...prev, ...settings }));
         toast({
           title: 'Settings Updated',
-          description: `Attendance criteria set to ${settings.attendanceCriteria ?? prev.attendanceCriteria}%`,
+          description: `Attendance criteria set to ${settings.attendanceCriteria}%`,
         });
       } catch (error: any) {
         console.error('Error updating settings:', error);
