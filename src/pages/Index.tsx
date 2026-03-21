@@ -385,7 +385,7 @@ const Index = () => {
             <GraduationCap className="h-5 w-5 text-primary opacity-50" />
             <span className="font-black text-muted-foreground/50 tracking-tight">MY ATTENDANCE HUB</span>
           </div>
-          <p className="text-xs text-muted-foreground/50 font-medium tracking-widest uppercase">© 2024 • THE NEXT GENERATION ATTENDANCE TOOL</p>
+          <p className="text-xs text-muted-foreground/50 font-medium tracking-widest uppercase">© 2026 • THE NEXT GENERATION ATTENDANCE TOOL</p>
         </div>
       </footer>
     </div>
