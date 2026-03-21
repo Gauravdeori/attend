@@ -16,7 +16,7 @@ A simple and smart attendance tracker for students to manage subject-wise attend
 - **Styling:** Tailwind CSS
 - **Components:** shadcn/ui
 - **Icons:** Lucide React
-- **Database/Auth:** Supabase
+- **Database/Auth:** Firebase
 
 ## Getting Started
 
