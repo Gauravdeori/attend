@@ -16,6 +16,7 @@ import { PostClassPrompt } from '@/components/PostClassPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { PWABanner } from '@/components/PWABanner';
 import { Subject } from '@/hooks/useAttendanceDB';
 import { ScheduleSlot } from '@/types/attendance';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -141,6 +142,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <PWABanner />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">

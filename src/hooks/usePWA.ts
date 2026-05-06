@@ -13,12 +13,17 @@ export function usePWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     // Check if app is already installed
     if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
       setIsInstalled(true);
     }
+
+    // Check if on iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
 
     const handler = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
@@ -60,5 +65,5 @@ export function usePWA() {
     setIsInstallable(false);
   };
 
-  return { isInstallable, isInstalled, installApp };
+  return { isInstallable, isInstalled, isIOS, installApp };
 }
