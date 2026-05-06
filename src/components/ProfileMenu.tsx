@@ -11,10 +11,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Settings as SettingsIcon, Palette } from 'lucide-react';
+import { User, LogOut, Settings as SettingsIcon, Palette, Download } from 'lucide-react';
 import { ProfileDialog } from './ProfileDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { useTheme } from 'next-themes';
+import { usePWA } from '@/hooks/usePWA';
 
 interface ProfileMenuProps {
   onSettingsClick?: () => void;
@@ -23,6 +24,7 @@ interface ProfileMenuProps {
 export function ProfileMenu({ onSettingsClick }: ProfileMenuProps) {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { isInstallable, installApp } = usePWA();
   const [showProfile, setShowProfile] = useState(false);
 
   if (!user) return null;
@@ -75,6 +77,12 @@ export function ProfileMenu({ onSettingsClick }: ProfileMenuProps) {
               <Palette className="mr-2 h-4 w-4" />
               <span>Toggle Theme</span>
             </DropdownMenuItem>
+            {isInstallable && (
+              <DropdownMenuItem onClick={installApp} className="cursor-pointer text-primary font-bold">
+                <Download className="mr-2 h-4 w-4" />
+                <span>Install App</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
