@@ -5,7 +5,9 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut as firebaseSignOut,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { auth } from '@/integrations/firebase/client';
 
@@ -14,6 +16,8 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
+  updateUserProfile: (displayName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -55,12 +59,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const updateUserProfile = async (displayName: string) => {
+    if (!auth.currentUser) return { error: new Error('No user logged in') };
+    try {
+      await updateProfile(auth.currentUser, { displayName });
+      // Force user state update
+      setUser({ ...auth.currentUser });
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     await firebaseSignOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, updateUserProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

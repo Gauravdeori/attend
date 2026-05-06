@@ -27,9 +27,10 @@ type Step = 'upload' | 'filter' | 'confirm';
 
 interface RoutineImporterProps {
   onImport: (subjects: any[], schedule: any[]) => Promise<void>;
+  aiProvider?: 'groq' | 'openrouter';
 }
 
-export function RoutineImporter({ onImport }: RoutineImporterProps) {
+export function RoutineImporter({ onImport, aiProvider = 'groq' }: RoutineImporterProps) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<Step>('upload');
@@ -46,7 +47,7 @@ export function RoutineImporter({ onImport }: RoutineImporterProps) {
 
     setIsAnalyzing(true);
     try {
-      const result = await analyzeRoutine(file);
+      const result = await analyzeRoutine(file, aiProvider);
       setAnalysis(result);
       
       // Initialize with all subjects selected by original index

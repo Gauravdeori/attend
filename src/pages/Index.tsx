@@ -14,6 +14,8 @@ import { ReminderSettings } from '@/components/ReminderSettings';
 import { TodayDashboard } from '@/components/TodayDashboard';
 import { PostClassPrompt } from '@/components/PostClassPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ProfileMenu } from '@/components/ProfileMenu';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { Subject } from '@/hooks/useAttendanceDB';
 import { ScheduleSlot } from '@/types/attendance';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -60,6 +62,10 @@ const Index = () => {
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [historySubject, setHistorySubject] = useState<Subject | null>(null);
   const [activePromptSlot, setActivePromptSlot] = useState<ScheduleSlot | null>(null);
+  
+  // App states
+  const [activeTab, setActiveTab] = useState('subjects');
+  const [showSettings, setShowSettings] = useState(false);
 
   // Initialize reminders
   useReminders(reminders, scheduleSlots);
@@ -97,8 +103,8 @@ const Index = () => {
     await updateSubject(id, updates);
   };
 
-  const handleUpdateSettings = async (criteria: number) => {
-    await updateSettings({ attendanceCriteria: criteria });
+  const handleUpdateSettings = async (settings: { attendanceCriteria: number, aiProvider: 'groq' | 'openrouter' | 'openai' }) => {
+    await updateSettings(settings);
   };
 
   // Calculate bunk budget summary
@@ -144,73 +150,71 @@ const Index = () => {
                 <GraduationCap className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight">Attendance Tracker</h1>
-                <p className="text-[10px] text-muted-foreground hidden sm:block font-bold">
-                  {user?.email}
-                </p>
+                <h1 className="text-xl font-bold tracking-tight">PresentIQ</h1>
+                {user?.displayName && (
+                  <p className="text-[10px] text-muted-foreground hidden sm:block font-bold">
+                    Hi, {user.displayName.split(' ')[0]}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
-              <RoutineImporter onImport={async (newSubjects, newSchedule) => {
-                if (newSubjects.length > 0 || newSchedule.length > 0) {
-                  const addedSubjects = await batchAddSubjects(newSubjects);
-                  
-                  if (newSchedule.length > 0) {
-                    // Map subject names to their new IDs
-                    const scheduleWithIds = newSchedule.map(slot => {
-                      const subject = addedSubjects.find(s => 
-                        s.name.toLowerCase().trim() === slot.subjectName.toLowerCase().trim()
-                      );
-                      return {
-                        ...slot,
-                        subjectId: subject ? subject.id : ''
-                      };
-                    }).filter(slot => slot.subjectId !== ''); // Only save slots that were successfully mapped
+              <div className="hidden md:flex items-center gap-2">
+                <RoutineImporter 
+                aiProvider={userSettings.aiProvider}
+                onImport={async (newSubjects, newSchedule) => {
+                  if (newSubjects.length > 0 || newSchedule.length > 0) {
+                    const addedSubjects = await batchAddSubjects(newSubjects);
+                    
+                    if (newSchedule.length > 0) {
+                      const scheduleWithIds = newSchedule.map(slot => {
+                        const subject = addedSubjects.find(s => 
+                          s.name.toLowerCase().trim() === slot.subjectName.toLowerCase().trim()
+                        );
+                        return {
+                          ...slot,
+                          subjectId: subject ? subject.id : ''
+                        };
+                      }).filter(slot => slot.subjectId !== '');
 
-                    if (scheduleWithIds.length > 0) {
-                      await saveSchedule(scheduleWithIds);
+                      if (scheduleWithIds.length > 0) {
+                        await saveSchedule(scheduleWithIds);
+                      }
                     }
                   }
-                }
-              }} />
-              <AddSubjectDialog onAdd={handleAddSubject} />
-              {subjects.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:border-destructive/50 hidden sm:flex"
-                  onClick={() => {
-                    if (window.confirm(`Delete all ${subjects.length} subjects? This cannot be undone.`)) {
-                      deleteAllSubjects();
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete All
-                </Button>
-              )}
-              <ReminderSettings
-                subjects={subjects}
-                reminders={reminders}
-                onSaveReminder={saveReminder}
-                onUpdateReminder={updateReminder}
-                onDeleteReminder={deleteReminder}
-              />
-              <SettingsDialog
-                attendanceCriteria={userSettings.attendanceCriteria}
-                onSave={handleUpdateSettings}
-              />
-              <ThemeToggle />
-              <Button variant="ghost" size="icon" onClick={signOut} title="Sign out" className="hover:bg-destructive/10 hover:text-destructive">
-                <LogOut className="h-5 w-5" />
-              </Button>
+                }} />
+                <AddSubjectDialog onAdd={handleAddSubject} />
+                {subjects.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:border-destructive/50"
+                    onClick={() => {
+                      if (window.confirm(`Delete all ${subjects.length} subjects? This cannot be undone.`)) {
+                        deleteAllSubjects();
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete All
+                  </Button>
+                )}
+                <ReminderSettings
+                  subjects={subjects}
+                  reminders={reminders}
+                  onSaveReminder={saveReminder}
+                  onUpdateReminder={updateReminder}
+                  onDeleteReminder={deleteReminder}
+                />
+              </div>
+              <ProfileMenu onSettingsClick={() => setShowSettings(true)} />
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-7xl">
         
         {/* Today's Dashboard Section */}
         {(subjects.length > 0 || scheduleSlots.length > 0) && (
@@ -230,7 +234,9 @@ const Index = () => {
               Start your journey by adding subjects one-by-one or import your entire routine using AI.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <RoutineImporter onImport={async (newSubjects, newSchedule) => {
+              <RoutineImporter 
+                aiProvider={userSettings.aiProvider}
+                onImport={async (newSubjects, newSchedule) => {
                 if (newSubjects.length > 0 || newSchedule.length > 0) {
                   const addedSubjects = await batchAddSubjects(newSubjects);
                   
@@ -256,8 +262,8 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <Tabs defaultValue="subjects" className="w-full">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 h-12 p-1 bg-muted/50 rounded-xl">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 h-12 p-1 bg-muted/50 rounded-xl hidden md:grid">
               <TabsTrigger value="subjects" className="gap-2 font-bold rounded-lg data-[state=active]:shadow-sm">
                 <LayoutGrid className="h-4 w-4" />
                 Subjects
@@ -373,17 +379,31 @@ const Index = () => {
         onOpenChange={(open) => !open && setHistorySubject(null)}
       />
 
+      <SettingsDialog
+        attendanceCriteria={userSettings.attendanceCriteria}
+        aiProvider={userSettings.aiProvider || 'groq'}
+        onSave={handleUpdateSettings}
+        open={showSettings}
+        onOpenChange={setShowSettings}
+      />
+
       <PostClassPrompt
         slot={activePromptSlot}
         onResponse={handlePostClassResponse}
         onClose={() => setActivePromptSlot(null)}
+      />
+
+      <MobileBottomNav 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        onAddSubject={handleAddSubject} 
       />
       
       <footer className="py-12 border-t mt-auto">
         <div className="container mx-auto px-4 flex flex-col items-center gap-4">
           <div className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-primary opacity-50" />
-            <span className="font-black text-muted-foreground/50 tracking-tight">MY ATTENDANCE HUB</span>
+            <span className="font-black text-muted-foreground/50 tracking-tight">PRESENTIQ</span>
           </div>
           <p className="text-xs text-muted-foreground/50 font-medium tracking-widest uppercase">© 2026 • THE NEXT GENERATION ATTENDANCE TOOL</p>
         </div>

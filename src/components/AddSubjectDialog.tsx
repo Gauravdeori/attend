@@ -15,9 +15,10 @@ import { Plus } from 'lucide-react';
 
 interface AddSubjectDialogProps {
   onAdd: (subject: { name: string; code: string; teacherName: string }) => void;
+  trigger?: React.ReactNode;
 }
 
-export function AddSubjectDialog({ onAdd }: AddSubjectDialogProps) {
+export function AddSubjectDialog({ onAdd, trigger }: AddSubjectDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -37,10 +38,13 @@ export function AddSubjectDialog({ onAdd }: AddSubjectDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 animate-click">
-          <Plus className="h-4 w-4" />
-          Add Subject
-        </Button>
+        {trigger || (
+          <Button className="gap-2 animate-click">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Add Subject</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>

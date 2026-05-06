@@ -43,6 +43,7 @@ export interface Reminder {
 
 export interface UserSettings {
   attendanceCriteria: number; // default 75
+  aiProvider?: 'groq' | 'openrouter' | 'openai';
 }
 
 export interface BunkAnalysis {

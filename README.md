@@ -1,4 +1,4 @@
-# Attendance Tracker
+# PresentIQ
 
 A simple and smart attendance tracker for students to manage subject-wise attendance and percentage.
 

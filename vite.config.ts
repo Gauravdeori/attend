@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'MyAttendanceHub',
-        short_name: 'AttendanceHub',
+        name: 'PresentIQ',
+        short_name: 'PresentIQ',
         description: 'Advanced AI-powered attendance tracker for students',
         theme_color: '#064e3b',
         background_color: '#020617',

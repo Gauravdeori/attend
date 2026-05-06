@@ -23,20 +23,41 @@ export interface AnalysisResponse {
   schedule: ExtractedScheduleSlot[];
 }
 
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
-const MODELS = [
+const GROQ_MODELS = [
+  "llama-4-scout-17b-16e-instruct",
+  "llama-4-maverick-17b-128e-instruct",
+];
+
+const OPENROUTER_MODELS = [
   "google/gemini-2.0-flash-001",
   "google/gemini-2.0-flash-lite-001",
   "openai/gpt-4o-mini"
 ];
 
-export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error("OpenRouter API Key is missing. Please add VITE_OPENROUTER_API_KEY to your .env file.");
-  }
+const OPENAI_MODELS = [
+  "gpt-4o-mini",
+  "gpt-4o"
+];
 
-  // Convert file to base64
+export async function analyzeRoutine(
+  file: File, 
+  preferredProvider: 'groq' | 'openrouter' | 'openai' = 'groq'
+): Promise<AnalysisResponse> {
+  // Define the order of providers to try, starting with the user's preference
+  const providers: ('groq' | 'openrouter' | 'openai')[] = [preferredProvider];
+  
+  // Add other available providers as fallbacks
+  if (!providers.includes('groq')) providers.push('groq');
+  if (!providers.includes('openai')) providers.push('openai');
+  if (!providers.includes('openrouter')) providers.push('openrouter');
+
+  let lastError: any = null;
+
+  // Convert file to base64 once
   const reader = new FileReader();
   const fileData = await new Promise<string>((resolve) => {
     reader.onload = () => {
@@ -86,78 +107,117 @@ export async function analyzeRoutine(file: File): Promise<AnalysisResponse> {
     IMPORTANT: Return ONLY valid JSON. No markdown backticks.
   `;
 
-  let lastError: any = null;
+  // Try each provider in order
+  for (const provider of providers) {
+    let apiKey: string | undefined;
+    let models: string[];
+    let endpoint: string;
 
-  for (const model of MODELS) {
-    for (let retry = 0; retry < 2; retry++) {
-      try {
-        if (retry > 0) {
-          // Semi-exponential backoff
-          await new Promise(r => setTimeout(r, 1000 * retry * retry));
-          console.log(`Retrying analysis with model ${model} (attempt ${retry + 1})...`);
-        }
+    switch (provider) {
+      case 'groq':
+        apiKey = GROQ_API_KEY;
+        models = GROQ_MODELS;
+        endpoint = "https://api.groq.com/openai/v1/chat/completions";
+        break;
+      case 'openrouter':
+        apiKey = OPENROUTER_API_KEY;
+        models = OPENROUTER_MODELS;
+        endpoint = "https://openrouter.ai/api/v1/chat/completions";
+        break;
+      case 'openai':
+        apiKey = OPENAI_API_KEY;
+        models = OPENAI_MODELS;
+        endpoint = "https://api.openai.com/v1/chat/completions";
+        break;
+      default:
+        continue;
+    }
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+    if (!apiKey || apiKey.includes("your_")) {
+      console.warn(`Skipping provider ${provider}: API Key is missing or invalid.`);
+      continue;
+    }
+
+    console.log(`Attempting analysis with provider: ${provider}...`);
+
+    for (const model of models) {
+      for (let retry = 0; retry < 2; retry++) {
+        try {
+          if (retry > 0) {
+            await new Promise(r => setTimeout(r, 1000 * retry * retry));
+            console.log(`Retrying analysis with provider ${provider} / model ${model} (attempt ${retry + 1})...`);
+          }
+
+          const headers: any = {
+            "Authorization": `Bearer ${apiKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": window.location.origin,
-            "X-Title": "MyAttendanceHub",
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:${file.type};base64,${fileData}`,
+          };
+
+          if (provider === 'openrouter') {
+            headers["HTTP-Referer"] = window.location.origin;
+            headers["X-Title"] = "PresentIQ";
+          }
+
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: model,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: prompt },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:${file.type};base64,${fileData}`,
+                      },
                     },
-                  },
-                ],
-              },
-            ],
-          }),
-        });
+                  ],
+                },
+              ],
+              temperature: 0.1,
+              max_tokens: 4096,
+            }),
+          });
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData?.error?.message || `OpenRouter API error: ${response.status} ${response.statusText}`
-          );
-        }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData?.error?.message || `${provider} API error: ${response.status} ${response.statusText}`
+            );
+          }
 
-        const data = await response.json();
-        const text = data.choices?.[0]?.message?.content || "";
+          const data = await response.json();
+          const text = data.choices?.[0]?.message?.content || "";
 
-        // Clean the response text from any markdown blocks
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error("Failed to parse AI response. Unexpected format.");
-        }
+          // Clean the response text from any markdown blocks
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            throw new Error("Failed to parse AI response. Unexpected format.");
+          }
 
-        const parsed = JSON.parse(jsonMatch[0]);
-        
-        if (!parsed.schedule) parsed.schedule = [];
-        if (!parsed.subjects) parsed.subjects = [];
+          const parsed = JSON.parse(jsonMatch[0]);
+          
+          if (!parsed.schedule) parsed.schedule = [];
+          if (!parsed.subjects) parsed.subjects = [];
 
-        return parsed as AnalysisResponse;
-      } catch (err: any) {
-        console.warn(`Analysis failed with model ${model}:`, err.message);
-        lastError = err;
-        
-        // If it's a 500 error, we definitely want to try the next model or retry.
-        // If it's a 4xx error (like invalid key), we shouldn't retry.
-        if (err.message.includes("401") || err.message.includes("403")) {
-          throw err;
+          console.log(`Analysis successful with provider: ${provider}`);
+          return parsed as AnalysisResponse;
+        } catch (err: any) {
+          console.warn(`Analysis failed with ${provider}/${model}:`, err.message);
+          lastError = err;
+          
+          // Don't retry if it's an auth error, just move to next provider
+          if (err.message.includes("401") || err.message.includes("403")) {
+            break; 
+          }
         }
       }
     }
   }
 
-  throw new Error(`Routine analysis failed after multiple attempts. Last error: ${lastError?.message || "Internal Server Error"}. Please try again later or upload a clearer image.`);
+  throw new Error(`Routine analysis failed after trying all available AI providers. Last error: ${lastError?.message || "Internal Error"}. Please ensure at least one API key is correct.`);
 }
+

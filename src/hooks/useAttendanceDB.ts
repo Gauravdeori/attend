@@ -48,6 +48,7 @@ export interface AttendanceRecord {
 
 const DEFAULT_SETTINGS: UserSettings = {
   attendanceCriteria: 75,
+  aiProvider: 'groq',
 };
 
 export function useAttendanceDB() {
@@ -104,6 +105,7 @@ export function useAttendanceDB() {
         const data = settingsDoc.data();
         setUserSettings({
           attendanceCriteria: data.attendance_criteria ?? 75,
+          aiProvider: data.ai_provider ?? 'groq',
         });
       }
 
@@ -673,6 +675,9 @@ export function useAttendanceDB() {
         const firestoreData: any = {};
         if (settings.attendanceCriteria !== undefined) {
           firestoreData.attendance_criteria = settings.attendanceCriteria;
+        }
+        if (settings.aiProvider !== undefined) {
+          firestoreData.ai_provider = settings.aiProvider;
         }
 
         await withTimeout(
