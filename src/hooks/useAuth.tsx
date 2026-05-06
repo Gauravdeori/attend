@@ -7,7 +7,9 @@ import {
   signOut as firebaseSignOut,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from 'firebase/auth';
 import { auth } from '@/integrations/firebase/client';
 
@@ -62,9 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      // Try popup first
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error: any) {
+        // If popup is blocked or closed, try redirect
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+          await signInWithRedirect(auth, provider);
+        } else {
+          throw error;
+        }
+      }
       return { error: null };
     } catch (error) {
+      console.error('Google Sign-In Error:', error);
       return { error };
     }
   };

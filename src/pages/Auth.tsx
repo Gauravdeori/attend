@@ -135,9 +135,20 @@ const Auth = () => {
     setIsSubmitting(false);
     
     if (error) {
+      console.error('Google Auth Error:', error);
+      let message = (error as any).message;
+      
+      if ((error as any).code === 'auth/popup-blocked') {
+        message = 'Sign-in popup was blocked by your browser. We are redirecting you instead...';
+      } else if ((error as any).code === 'auth/unauthorized-domain') {
+        message = 'This domain is not authorized for Google Sign-In. Please check your Firebase console settings.';
+      } else if ((error as any).code === 'auth/popup-closed-by-user') {
+        message = 'The sign-in window was closed before completion.';
+      }
+
       toast({
-        title: 'Google Sign-In Failed',
-        description: error.message,
+        title: 'Sign-In Issue',
+        description: message,
         variant: 'destructive',
       });
     } else {
