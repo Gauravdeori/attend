@@ -61,7 +61,7 @@ function formatDate(timestamp: any) {
   if (!timestamp) return 'Just now';
   try {
     let date: Date;
-    if (typeof timestamp.toDate === 'function') {
+    if (timestamp && typeof timestamp.toDate === 'function') {
       date = timestamp.toDate();
     } else if (timestamp instanceof Date) {
       date = timestamp;
@@ -271,10 +271,28 @@ export default function ClassDetail() {
     toast({ title: "Report Generated", description: `Exporting ${format.toUpperCase()} report...` });
   };
 
-  if (isLoading || !classItem) {
+  if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm font-bold text-muted-foreground animate-pulse">Loading class details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!classItem) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-background p-6 text-center">
+        <div className="p-4 rounded-full bg-red-500/10 mb-4">
+          <AlertCircle className="h-10 w-10 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-black">Class Not Found</h2>
+        <p className="text-muted-foreground mb-6">The class you're looking for doesn't exist or you don't have access.</p>
+        <Button onClick={() => navigate('/classes')} className="rounded-2xl font-black px-8">
+          Return to Dashboard
+        </Button>
       </div>
     );
   }
@@ -352,7 +370,7 @@ export default function ClassDetail() {
                     <CardTitle className="text-lg font-black text-emerald-600 dark:text-emerald-400">Attendance Session</CardTitle>
                     <CardDescription className="text-xs font-bold flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      Verification Radius: {activeSession.location.radius}m
+                      Verification Radius: {activeSession?.location?.radius || 50}m
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -437,9 +455,9 @@ export default function ClassDetail() {
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <h4 className="font-black text-sm">{a.authorName}</h4>
+                            <h4 className="font-black text-sm">{a?.authorName || 'Teacher'}</h4>
                             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                              {formatDate(a.createdAt)}
+                              {formatDate(a?.createdAt)}
                             </p>
                           </div>
                           <DropdownMenu>
@@ -509,11 +527,11 @@ export default function ClassDetail() {
                           </div>
                           <div className="flex-1">
                             <h4 className="font-black text-sm">
-                              {formatDate(s.startTime)}
+                              {formatDate(s?.startTime)}
                             </h4>
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                              {s.startTime ? new Date(typeof s.startTime.toDate === 'function' ? s.startTime.toDate() : s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
-                              {s.endTime && ` — ${new Date(typeof s.endTime.toDate === 'function' ? s.endTime.toDate() : s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                              {s?.startTime ? new Date(typeof s.startTime.toDate === 'function' ? s.startTime.toDate() : s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
+                              {s?.endTime && ` — ${new Date(typeof s.endTime.toDate === 'function' ? s.endTime.toDate() : s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                             </p>
                           </div>
                           <div className="text-right">
@@ -521,7 +539,7 @@ export default function ClassDetail() {
                               {s.status}
                             </Badge>
                             <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tighter">
-                              {records.filter(r => r.sessionId === s.id).length} Present
+                              {records.filter(r => r?.sessionId === s?.id).length} Present
                             </p>
                           </div>
                         </div>
@@ -550,9 +568,9 @@ export default function ClassDetail() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h4 className="font-black text-sm">{m.userId === user?.uid ? "You" : `User ${m.userId.substring(0, 5)}`}</h4>
+                            <h4 className="font-black text-sm">{m?.userId === user?.uid ? "You" : (m?.studentName || `User ${m?.userId?.substring(0, 5) || 'Unknown'}`)}</h4>
                             <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest mt-1">
-                              {m.role}
+                              {m?.role || 'member'}
                             </Badge>
                           </div>
                         </div>
