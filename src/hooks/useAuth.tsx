@@ -8,10 +8,17 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult
+  signInWithRedirect
 } from 'firebase/auth';
 import { auth } from '@/integrations/firebase/client';
+
+// Mock Guest User for No-Auth Mode
+const GUEST_USER = {
+  uid: 'guest_user_default',
+  email: 'guest@attendancehub.in',
+  displayName: 'Guest User',
+  photoURL: null,
+} as User;
 
 interface AuthContextType {
   user: User | null;
@@ -26,12 +33,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(GUEST_USER); // Default to guest
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // If firebase user exists, use it. Otherwise, use guest user.
+      setUser(firebaseUser || GUEST_USER);
       setLoading(false);
     });
 
@@ -64,11 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      // Try popup first
       try {
         await signInWithPopup(auth, provider);
       } catch (error: any) {
-        // If popup is blocked or closed, try redirect
         if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
           await signInWithRedirect(auth, provider);
         } else {
@@ -83,19 +89,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUserProfile = async (displayName: string) => {
-    if (!auth.currentUser) return { error: new Error('No user logged in') };
-    try {
-      await updateProfile(auth.currentUser, { displayName });
-      // Force user state update
-      setUser({ ...auth.currentUser });
+    const currentUser = auth.currentUser || GUEST_USER;
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, { displayName });
+        setUser({ ...auth.currentUser });
+        return { error: null };
+      } catch (error) {
+        return { error };
+      }
+    } else {
+      // For guest, just update local state
+      setUser({ ...GUEST_USER, displayName });
       return { error: null };
-    } catch (error) {
-      return { error };
     }
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
+    setUser(GUEST_USER); // Fallback to guest
   };
 
   return (

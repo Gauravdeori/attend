@@ -27,10 +27,9 @@ type Step = 'upload' | 'filter' | 'confirm';
 
 interface RoutineImporterProps {
   onImport: (subjects: any[], schedule: any[]) => Promise<void>;
-  aiProvider?: 'groq' | 'openrouter';
 }
 
-export function RoutineImporter({ onImport, aiProvider = 'groq' }: RoutineImporterProps) {
+export function RoutineImporter({ onImport }: RoutineImporterProps) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<Step>('upload');
@@ -47,7 +46,7 @@ export function RoutineImporter({ onImport, aiProvider = 'groq' }: RoutineImport
 
     setIsAnalyzing(true);
     try {
-      const result = await analyzeRoutine(file, aiProvider);
+      const result = await analyzeRoutine(file);
       setAnalysis(result);
       
       // Initialize with all subjects selected by original index
@@ -308,7 +307,7 @@ export function RoutineImporter({ onImport, aiProvider = 'groq' }: RoutineImport
         </div>
 
         <DialogFooter className="text-[10px] text-muted-foreground text-center">
-          Powered by Gemini AI • Always verify extracted data.
+          Powered by NVIDIA AI • Always verify extracted data.
         </DialogFooter>
       </DialogContent>
     </Dialog>

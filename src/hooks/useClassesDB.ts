@@ -47,10 +47,18 @@ export function useClassesDB() {
         where('user_id', '==', user.uid)
       );
       const membershipSnap = await getDocs(membershipQuery);
-      const fetchedMemberships: ClassMembership[] = membershipSnap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })) as ClassMembership[];
+      const fetchedMemberships: ClassMembership[] = membershipSnap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          classId: data.class_id,
+          userId: data.user_id,
+          role: data.role,
+          studentName: data.student_name,
+          rollNumber: data.roll_number,
+          joinedAt: data.joined_at
+        };
+      }) as ClassMembership[];
 
       setMemberships(fetchedMemberships);
 
@@ -75,9 +83,15 @@ export function useClassesDB() {
         );
         const classesSnap = await getDocs(classesQuery);
         classesSnap.docs.forEach(d => {
+          const data = d.data();
           classesData.push({
             id: d.id,
-            ...d.data()
+            name: data.name,
+            description: data.description,
+            joinCode: data.join_code,
+            teacherId: data.teacher_id,
+            teacherName: data.teacher_name,
+            createdAt: data.created_at
           } as Class);
         });
       }
@@ -112,23 +126,34 @@ export function useClassesDB() {
       const classData = {
         name,
         description,
-        joinCode,
-        teacherId: user.uid,
-        teacherName: user.displayName || 'Teacher',
-        createdAt: serverTimestamp(),
+        join_code: joinCode,
+        teacher_id: user.uid,
+        teacher_name: user.displayName || 'Teacher',
+        created_at: serverTimestamp(),
       };
 
       const classRef = await addDoc(collection(db, 'classes'), classData);
       
       // Automatically add the creator as a teacher membership
       const membershipData = {
-        userId: user.uid,
-        classId: classRef.id,
+        user_id: user.uid,
+        class_id: classRef.id,
         role: 'teacher',
-        joinedAt: serverTimestamp(),
+        joined_at: serverTimestamp(),
       };
 
       await setDoc(doc(db, 'class_memberships', `${user.uid}_${classRef.id}`), membershipData);
+      
+      // Update local state immediately to avoid race conditions
+      setClasses(prev => [{
+        id: classRef.id,
+        name,
+        description,
+        joinCode,
+        teacherId: user.uid,
+        teacherName: user.displayName || 'Teacher',
+        createdAt: null as any // Will be updated by refresh
+      }, ...prev]);
       
       await fetchUserClasses();
       return classRef.id;
@@ -179,12 +204,12 @@ export function useClassesDB() {
 
       // Add student membership
       const membershipData = {
-        userId: user.uid,
-        classId,
+        user_id: user.uid,
+        class_id: classId,
         role: 'student',
-        studentName,
-        rollNumber,
-        joinedAt: serverTimestamp(),
+        student_name: studentName,
+        roll_number: rollNumber,
+        joined_at: serverTimestamp(),
       };
 
       await setDoc(membershipRef, membershipData);
@@ -206,11 +231,22 @@ export function useClassesDB() {
     try {
       const q = query(
         collection(db, 'attendance_sessions'),
-        where('classId', '==', classId),
-        orderBy('startTime', 'desc')
+        where('class_id', '==', classId),
+        orderBy('start_time', 'desc')
       );
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as AttendanceSession));
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          classId: data.class_id,
+          teacherId: data.teacher_id,
+          startTime: data.start_time,
+          endTime: data.end_time,
+          status: data.status,
+          location: data.location
+        };
+      }) as AttendanceSession[];
     } catch (error) {
       console.error('Error fetching sessions:', error);
       return [];
@@ -221,10 +257,10 @@ export function useClassesDB() {
     if (!user) return null;
     try {
       const sessionData = {
-        classId,
-        teacherId: user.uid,
-        startTime: serverTimestamp(),
-        endTime: null,
+        class_id: classId,
+        teacher_id: user.uid,
+        start_time: serverTimestamp(),
+        end_time: null,
         status: 'active',
         location,
       };
@@ -268,13 +304,13 @@ export function useClassesDB() {
     if (!user) return false;
     try {
       const recordData = {
-        sessionId,
-        classId,
-        studentId: user.uid,
-        studentName: user.displayName || 'Student',
+        session_id: sessionId,
+        class_id: classId,
+        student_id: user.uid,
+        student_name: user.displayName || 'Student',
         timestamp: serverTimestamp(),
         status,
-        locationVerified,
+        location_verified: locationVerified,
       };
       
       // Use setDoc with composite ID to prevent duplicate marking for the same session
@@ -295,11 +331,23 @@ export function useClassesDB() {
     try {
       const q = query(
         collection(db, 'class_attendance_records'),
-        where('classId', '==', classId),
+        where('class_id', '==', classId),
         orderBy('timestamp', 'desc')
       );
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as ClassAttendanceRecord));
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          sessionId: data.session_id,
+          classId: data.class_id,
+          studentId: data.student_id,
+          studentName: data.student_name,
+          timestamp: data.timestamp,
+          status: data.status,
+          locationVerified: data.location_verified
+        };
+      }) as ClassAttendanceRecord[];
     } catch (error) {
       console.error('Error fetching records:', error);
       return [];
@@ -310,11 +358,21 @@ export function useClassesDB() {
     try {
       const q = query(
         collection(db, 'announcements'),
-        where('classId', '==', classId),
-        orderBy('createdAt', 'desc')
+        where('class_id', '==', classId),
+        orderBy('created_at', 'desc')
       );
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement));
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          classId: data.class_id,
+          authorId: data.author_id,
+          authorName: data.author_name,
+          content: data.content,
+          createdAt: data.created_at
+        };
+      }) as Announcement[];
     } catch (error) {
       console.error('Error fetching announcements:', error);
       return [];
@@ -325,11 +383,11 @@ export function useClassesDB() {
     if (!user) return null;
     try {
       const announcementData = {
-        classId,
-        authorId: user.uid,
-        authorName: user.displayName || 'Teacher',
+        class_id: classId,
+        author_id: user.uid,
+        author_name: user.displayName || 'Teacher',
         content,
-        createdAt: serverTimestamp(),
+        created_at: serverTimestamp(),
       };
       const ref = await addDoc(collection(db, 'announcements'), announcementData);
       return ref.id;
@@ -352,7 +410,18 @@ export function useClassesDB() {
       );
       const snap = await getDocs(q);
       
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as ClassMembership));
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          classId: data.class_id,
+          userId: data.user_id,
+          role: data.role,
+          studentName: data.student_name,
+          rollNumber: data.roll_number,
+          joinedAt: data.joined_at
+        };
+      }) as ClassMembership[];
     } catch (error) {
       console.error('Error fetching members:', error);
       return [];

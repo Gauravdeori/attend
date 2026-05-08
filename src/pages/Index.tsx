@@ -107,7 +107,7 @@ const Index = () => {
     await updateSubject(id, updates);
   };
 
-  const handleUpdateSettings = async (settings: { attendanceCriteria: number, aiProvider: 'groq' | 'openrouter' | 'openai' }) => {
+  const handleUpdateSettings = async (settings: { attendanceCriteria: number }) => {
     await updateSettings(settings);
   };
 
@@ -166,7 +166,6 @@ const Index = () => {
             <div className="flex items-center gap-1 sm:gap-2">
               <div className="hidden md:flex items-center gap-2">
                 <RoutineImporter 
-                aiProvider={userSettings.aiProvider}
                 onImport={async (newSubjects, newSchedule) => {
                   if (newSubjects.length > 0 || newSchedule.length > 0) {
                     const addedSubjects = await batchAddSubjects(newSubjects);
@@ -269,7 +268,6 @@ const Index = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <RoutineImporter 
-                aiProvider={userSettings.aiProvider}
                 onImport={async (newSubjects, newSchedule) => {
                 if (newSubjects.length > 0 || newSchedule.length > 0) {
                   const addedSubjects = await batchAddSubjects(newSubjects);
@@ -415,7 +413,6 @@ const Index = () => {
 
       <SettingsDialog
         attendanceCriteria={userSettings.attendanceCriteria}
-        aiProvider={userSettings.aiProvider || 'groq'}
         onSave={handleUpdateSettings}
         open={showSettings}
         onOpenChange={setShowSettings}

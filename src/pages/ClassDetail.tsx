@@ -41,7 +41,8 @@ import { cn } from '@/lib/utils';
 import { generateAttendanceReport } from '@/lib/reportUtils';
 
 // Helper for distance calculation
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+function calculateDistance(lat1?: number, lon1?: number, lat2?: number, lon2?: number) {
+  if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) return Infinity;
   const R = 6371e3; // meters
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
@@ -54,6 +55,32 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in meters
+}
+
+function formatDate(timestamp: any) {
+  if (!timestamp) return 'Just now';
+  try {
+    let date: Date;
+    if (typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    } else {
+      return 'Just now';
+    }
+
+    if (isNaN(date.getTime())) return 'Just now';
+    
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  } catch (e) {
+    return 'Recently';
+  }
 }
 
 export default function ClassDetail() {
@@ -192,10 +219,10 @@ export default function ClassDetail() {
       const { latitude, longitude } = pos.coords;
       const distance = calculateDistance(
         latitude, longitude, 
-        activeSession.location.lat, activeSession.location.lng
+        activeSession?.location?.lat, activeSession?.location?.lng
       );
 
-      const verified = distance <= activeSession.location.radius;
+      const verified = distance <= (activeSession?.location?.radius || 50);
       
       if (!verified) {
         toast({ 
@@ -412,9 +439,7 @@ export default function ClassDetail() {
                           <div className="flex-1">
                             <h4 className="font-black text-sm">{a.authorName}</h4>
                             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                              {new Date(a.createdAt?.toDate?.() || Date.now()).toLocaleDateString('en-US', {
-                                month: 'short', day: 'numeric', year: 'numeric'
-                              })}
+                              {formatDate(a.createdAt)}
                             </p>
                           </div>
                           <DropdownMenu>
@@ -484,13 +509,11 @@ export default function ClassDetail() {
                           </div>
                           <div className="flex-1">
                             <h4 className="font-black text-sm">
-                              {new Date(s.startTime?.toDate?.() || Date.now()).toLocaleDateString('en-US', {
-                                weekday: 'long', month: 'long', day: 'numeric'
-                              })}
+                              {formatDate(s.startTime)}
                             </h4>
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                              {new Date(s.startTime?.toDate?.() || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              {s.endTime && ` — ${new Date(s.endTime?.toDate?.() || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                              {s.startTime ? new Date(typeof s.startTime.toDate === 'function' ? s.startTime.toDate() : s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
+                              {s.endTime && ` — ${new Date(typeof s.endTime.toDate === 'function' ? s.endTime.toDate() : s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                             </p>
                           </div>
                           <div className="text-right">

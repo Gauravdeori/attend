@@ -12,8 +12,7 @@ import { Settings } from "lucide-react";
 
 interface SettingsDialogProps {
   attendanceCriteria: number;
-  aiProvider: 'groq' | 'openrouter' | 'openai';
-  onSave: (settings: { attendanceCriteria: number, aiProvider: 'groq' | 'openrouter' | 'openai' }) => void;
+  onSave: (settings: { attendanceCriteria: number }) => void;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -26,10 +25,9 @@ const PRESETS = [
   { label: '90%', value: 90 },
 ];
 
-export function SettingsDialog({ attendanceCriteria, aiProvider, onSave, trigger, open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ attendanceCriteria, onSave, trigger, open, onOpenChange }: SettingsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [criteria, setCriteria] = useState(attendanceCriteria);
-  const [provider, setProvider] = useState<'groq' | 'openrouter' | 'openai'>(aiProvider);
 
   const isControlled = open !== undefined;
   const dialogOpen = isControlled ? open : isOpen;
@@ -39,12 +37,11 @@ export function SettingsDialog({ attendanceCriteria, aiProvider, onSave, trigger
     if (onOpenChange) onOpenChange(newOpen);
     if (newOpen) {
       setCriteria(attendanceCriteria);
-      setProvider(aiProvider);
     }
   };
 
   const handleSave = () => {
-    onSave({ attendanceCriteria: criteria, aiProvider: provider });
+    onSave({ attendanceCriteria: criteria });
     if (!isControlled) setIsOpen(false);
     if (onOpenChange) onOpenChange(false);
   };
@@ -108,41 +105,6 @@ export function SettingsDialog({ attendanceCriteria, aiProvider, onSave, trigger
                 </Button>
               ))}
             </div>
-          </div>
-
-          {/* AI Provider */}
-          <div className="space-y-3 pt-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Routine AI Provider</p>
-            <div className="flex gap-2 p-1 bg-muted rounded-xl">
-              <button
-                type="button"
-                className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg transition-all ${provider === 'groq' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
-                onClick={() => setProvider('groq')}
-              >
-                Groq (Fast)
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-2 px-3 text-[10px] font-bold rounded-lg transition-all ${provider === 'openrouter' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
-                onClick={() => setProvider('openrouter')}
-              >
-                OpenRouter
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-2 px-3 text-[10px] font-bold rounded-lg transition-all ${provider === 'openai' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
-                onClick={() => setProvider('openai')}
-              >
-                OpenAI
-              </button>
-            </div>
-            <p className="text-[10px] text-muted-foreground leading-relaxed px-1">
-              {provider === 'groq' 
-                ? "Uses Groq's high-speed inference for near-instant routine analysis." 
-                : provider === 'openai'
-                ? "Connects directly to OpenAI GPT-4o-mini for high accuracy."
-                : "Connects via OpenRouter for more model options if needed."}
-            </p>
           </div>
 
           {/* Save */}
