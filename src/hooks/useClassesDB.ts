@@ -154,6 +154,14 @@ export function useClassesDB() {
         teacherName: user.displayName || 'Teacher',
         createdAt: null as any // Will be updated by refresh
       }, ...prev]);
+
+      setMemberships(prev => [{
+        id: `${user.uid}_${classRef.id}`,
+        classId: classRef.id,
+        userId: user.uid,
+        role: 'teacher',
+        joinedAt: null as any
+      }, ...prev]);
       
       await fetchUserClasses();
       return classRef.id;
@@ -175,7 +183,7 @@ export function useClassesDB() {
       // Find the class with the join code
       const classQuery = query(
         collection(db, 'classes'),
-        where('joinCode', '==', joinCode.toUpperCase())
+        where('join_code', '==', joinCode.toUpperCase())
       );
       const classSnap = await getDocs(classQuery);
       
@@ -213,6 +221,16 @@ export function useClassesDB() {
       };
 
       await setDoc(membershipRef, membershipData);
+      
+      setMemberships(prev => [{
+        id: `${user.uid}_${classId}`,
+        classId: classId,
+        userId: user.uid,
+        role: 'student',
+        studentName,
+        rollNumber,
+        joinedAt: null as any
+      }, ...prev]);
       
       await fetchUserClasses();
       return classId;
@@ -406,7 +424,7 @@ export function useClassesDB() {
     try {
       const q = query(
         collection(db, 'class_memberships'),
-        where('classId', '==', classId)
+        where('class_id', '==', classId)
       );
       const snap = await getDocs(q);
       
