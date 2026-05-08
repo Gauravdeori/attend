@@ -23,7 +23,7 @@ export interface AnalysisResponse {
   schedule: ExtractedScheduleSlot[];
 }
 
-const NVIDIA_API_KEY = "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";
+const NVIDIA_API_KEY = import.meta.env.VITE_NVIDIA_API_KEY;
 const NVIDIA_MODEL = "meta/llama-3.2-11b-vision-instruct";
 const NVIDIA_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 
