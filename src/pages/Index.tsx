@@ -17,6 +17,8 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { PWABanner } from '@/components/PWABanner';
+import { usePWA } from '@/hooks/usePWA';
+import { Download, Smartphone, Share, PlusSquare } from 'lucide-react';
 import { Subject } from '@/hooks/useAttendanceDB';
 import { ScheduleSlot } from '@/types/attendance';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -37,6 +39,7 @@ import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { isInstallable, isIOS, installApp, isInstalled } = usePWA();
   const {
     subjects,
     scheduleSlots,
@@ -217,6 +220,35 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-7xl">
+        
+        {/* Desktop Install CTA */}
+        {(!isInstalled && (isInstallable || isIOS)) && (
+          <div className="hidden md:flex flex-col sm:flex-row items-center justify-between p-6 rounded-3xl bg-primary/10 border border-primary/20 mb-8 group hover:bg-primary/[0.15] transition-all duration-500">
+            <div className="flex items-center gap-5">
+              <div className="p-4 bg-primary/20 rounded-2xl group-hover:scale-110 transition-transform duration-500">
+                <Smartphone className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-primary">Get the PresentIQ App</h3>
+                <p className="text-sm text-muted-foreground font-medium">Install on your phone for lightning fast access and offline tracking.</p>
+              </div>
+            </div>
+            {isIOS ? (
+              <div className="flex items-center gap-3 bg-background/50 px-4 py-2 rounded-2xl border border-primary/10 shadow-sm mt-4 sm:mt-0">
+                <span className="text-xs font-bold">Tap</span>
+                <Share className="h-4 w-4 text-primary" />
+                <span className="text-xs font-bold">then</span>
+                <PlusSquare className="h-4 w-4 text-primary" />
+                <span className="text-xs font-black text-primary">Add to Home Screen</span>
+              </div>
+            ) : (
+              <Button onClick={installApp} className="mt-4 sm:mt-0 h-12 px-8 rounded-2xl gap-3 shadow-xl shadow-primary/20 animate-pulse font-black text-lg">
+                <Download className="h-5 w-5" />
+                Install Now
+              </Button>
+            )}
+          </div>
+        )}
         
         {/* Today's Dashboard Section */}
         {(subjects.length > 0 || scheduleSlots.length > 0) && (

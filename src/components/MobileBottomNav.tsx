@@ -1,6 +1,8 @@
-import { LayoutGrid, Calendar, Plus } from 'lucide-react';
+import { LayoutGrid, Users, Calendar, Plus, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AddSubjectDialog } from './AddSubjectDialog';
+import { usePWA } from '@/hooks/usePWA';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface MobileBottomNavProps {
   activeTab: string;
@@ -9,14 +11,31 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ activeTab, onTabChange, onAddSubject }: MobileBottomNavProps) {
+  const { isInstallable, isIOS, installApp, isInstalled } = usePWA();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isClasses = location.pathname.startsWith('/classes');
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-background/95 backdrop-blur border-t px-2 pb-safe pt-2 md:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
       <button 
-        onClick={() => onTabChange('subjects')}
-        className={cn("flex flex-col items-center justify-center p-2 w-20 h-14 rounded-xl transition-all", activeTab === 'subjects' ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+        onClick={() => {
+          onTabChange('subjects');
+          navigate('/');
+        }}
+        className={cn("flex flex-col items-center justify-center p-2 w-16 h-14 rounded-xl transition-all", (!isClasses && activeTab === 'subjects') ? "text-primary" : "text-muted-foreground hover:text-foreground")}
       >
         <LayoutGrid className="h-5 w-5 mb-1" />
         <span className="text-[10px] font-bold">Subjects</span>
+      </button>
+
+      <button 
+        onClick={() => navigate('/classes')}
+        className={cn("flex flex-col items-center justify-center p-2 w-16 h-14 rounded-xl transition-all", isClasses ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+      >
+        <Users className="h-5 w-5 mb-1" />
+        <span className="text-[10px] font-bold">Classes</span>
       </button>
 
       {/* Floating Action Button (FAB) for Add Subject */}
@@ -32,12 +51,27 @@ export function MobileBottomNav({ activeTab, onTabChange, onAddSubject }: Mobile
       </div>
 
       <button 
-        onClick={() => onTabChange('schedule')}
-        className={cn("flex flex-col items-center justify-center p-2 w-20 h-14 rounded-xl transition-all", activeTab === 'schedule' ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+        onClick={() => {
+          onTabChange('schedule');
+          navigate('/');
+        }}
+        className={cn("flex flex-col items-center justify-center p-2 w-16 h-14 rounded-xl transition-all", (!isClasses && activeTab === 'schedule') ? "text-primary" : "text-muted-foreground hover:text-foreground")}
       >
         <Calendar className="h-5 w-5 mb-1" />
         <span className="text-[10px] font-bold">Schedule</span>
       </button>
+
+      {(!isInstalled && (isInstallable || isIOS)) ? (
+        <button 
+          onClick={installApp}
+          className="flex flex-col items-center justify-center p-2 w-16 h-14 rounded-xl text-primary animate-pulse transition-all"
+        >
+          <Download className="h-5 w-5 mb-1" />
+          <span className="text-[10px] font-bold">Install</span>
+        </button>
+      ) : (
+        <div className="w-16" />
+      )}
     </div>
   );
 }
