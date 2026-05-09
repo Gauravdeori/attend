@@ -63,16 +63,16 @@ export default function Classes() {
           <Button 
             onClick={() => setShowJoin(true)} 
             variant="outline" 
-            className="h-12 px-6 rounded-2xl font-bold border-2 gap-2"
+            className="h-10 px-4 rounded-md font-medium border gap-2"
           >
             <Search className="h-4 w-4" />
             Join Class
           </Button>
           <Button 
             onClick={() => setShowCreate(true)} 
-            className="h-12 px-6 rounded-2xl font-black gap-2 shadow-lg shadow-primary/20"
+            className="h-10 px-4 rounded-md font-medium gap-2"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             Create Class
           </Button>
         </div>
@@ -80,21 +80,21 @@ export default function Classes() {
 
       {/* Tabs and Content */}
       {classes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 border-2 border-dashed rounded-[3rem] bg-muted/20">
-          <div className="p-6 rounded-full bg-background shadow-xl">
-            <GraduationCap className="h-16 w-16 text-primary" />
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 border border-dashed border-border/50 rounded-lg bg-muted/10">
+          <div className="p-4 rounded-md bg-card border border-border/50">
+            <GraduationCap className="h-10 w-10 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black">No Classes Yet</h2>
-            <p className="text-muted-foreground font-medium max-w-md">
+            <h2 className="text-xl font-semibold">No Classes Yet</h2>
+            <p className="text-muted-foreground text-sm max-w-md">
               Start by creating your own class or join one using a code from your teacher.
             </p>
           </div>
           <div className="flex gap-4">
-            <Button onClick={() => setShowJoin(true)} variant="outline" className="h-12 px-8 rounded-2xl font-bold border-2">
+            <Button onClick={() => setShowJoin(true)} variant="outline" className="rounded-md font-medium">
               Join Class
             </Button>
-            <Button onClick={() => setShowCreate(true)} className="h-12 px-8 rounded-2xl font-black shadow-lg shadow-primary/20">
+            <Button onClick={() => setShowCreate(true)} className="rounded-md font-medium">
               Create My First Class
             </Button>
           </div>
@@ -102,19 +102,19 @@ export default function Classes() {
       ) : (
         <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8">
-            <TabsList className="h-12 p-1 bg-muted/50 rounded-2xl border border-border/50">
-              <TabsTrigger value="all" className="rounded-xl px-6 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsList className="h-12 p-1 bg-transparent border-b border-border/50 rounded-none w-full sm:w-auto">
+              <TabsTrigger value="all" className="rounded-md px-6 font-medium data-[state=active]:bg-muted">
                 All Classes
               </TabsTrigger>
-              <TabsTrigger value="teaching" className="rounded-xl px-6 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <TabsTrigger value="teaching" className="rounded-md px-6 font-medium data-[state=active]:bg-muted">
                 Teaching
               </TabsTrigger>
-              <TabsTrigger value="joined" className="rounded-xl px-6 font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <TabsTrigger value="joined" className="rounded-md px-6 font-medium data-[state=active]:bg-muted">
                 Joined
               </TabsTrigger>
             </TabsList>
             
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest bg-muted/30 px-4 py-2 rounded-full border border-border/30">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-4 py-2">
               {filteredClasses.length} class{filteredClasses.length !== 1 && 'es'} found
             </p>
           </div>

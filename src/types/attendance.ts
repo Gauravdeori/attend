@@ -21,7 +21,7 @@ export interface AttendanceData {
   records: AttendanceRecord[];
 }
 
-export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri';
+export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat';
 
 export interface ScheduleSlot {
   id: string;

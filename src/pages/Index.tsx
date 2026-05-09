@@ -222,27 +222,27 @@ const Index = () => {
         
         {/* Desktop Install CTA */}
         {(!isInstalled && (isInstallable || isIOS)) && (
-          <div className="hidden md:flex flex-col sm:flex-row items-center justify-between p-6 rounded-3xl bg-primary/10 border border-primary/20 mb-8 group hover:bg-primary/[0.15] transition-all duration-500">
+          <div className="hidden md:flex flex-col sm:flex-row items-center justify-between p-6 rounded-lg bg-card border border-border/50 mb-8 group transition-all duration-300 hover:border-primary/50">
             <div className="flex items-center gap-5">
-              <div className="p-4 bg-primary/20 rounded-2xl group-hover:scale-110 transition-transform duration-500">
-                <Smartphone className="h-8 w-8 text-primary" />
+              <div className="p-3 bg-muted rounded-md group-hover:bg-primary/10 transition-colors">
+                <Smartphone className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-primary">Get the PresentIQ App</h3>
+                <h3 className="text-lg font-semibold text-foreground">Get the PresentIQ App</h3>
                 <p className="text-sm text-muted-foreground font-medium">Install on your phone for lightning fast access and offline tracking.</p>
               </div>
             </div>
             {isIOS ? (
-              <div className="flex items-center gap-3 bg-background/50 px-4 py-2 rounded-2xl border border-primary/10 shadow-sm mt-4 sm:mt-0">
-                <span className="text-xs font-bold">Tap</span>
-                <Share className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold">then</span>
-                <PlusSquare className="h-4 w-4 text-primary" />
-                <span className="text-xs font-black text-primary">Add to Home Screen</span>
+              <div className="flex items-center gap-3 bg-muted px-4 py-2 rounded-md border border-border/50 mt-4 sm:mt-0">
+                <span className="text-xs font-semibold text-muted-foreground">Tap</span>
+                <Share className="h-4 w-4 text-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground">then</span>
+                <PlusSquare className="h-4 w-4 text-foreground" />
+                <span className="text-xs font-semibold text-foreground">Add to Home Screen</span>
               </div>
             ) : (
-              <Button onClick={installApp} className="mt-4 sm:mt-0 h-12 px-8 rounded-2xl gap-3 shadow-xl shadow-primary/20 animate-pulse font-black text-lg">
-                <Download className="h-5 w-5" />
+              <Button onClick={installApp} className="mt-4 sm:mt-0 h-10 px-6 rounded-md gap-2 font-semibold text-sm">
+                <Download className="h-4 w-4" />
                 Install Now
               </Button>
             )}
@@ -258,12 +258,12 @@ const Index = () => {
         )}
 
         {subjects.length === 0 && scheduleSlots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed rounded-3xl bg-muted/20">
-            <div className="p-5 rounded-3xl bg-background shadow-md mb-6">
-              <BookOpen className="h-12 w-12 text-primary" />
+          <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border/50 rounded-lg bg-card/50">
+            <div className="p-4 rounded-md bg-muted mb-6 border border-border/50">
+              <BookOpen className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h2 className="text-2xl font-black mb-2">No Subjects Yet</h2>
-            <p className="text-muted-foreground mb-8 max-w-md font-medium">
+            <h2 className="text-xl font-semibold mb-2">No Subjects Yet</h2>
+            <p className="text-muted-foreground mb-8 max-w-md text-sm">
               Start your journey by adding subjects one-by-one or import your entire routine using AI.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -295,12 +295,12 @@ const Index = () => {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 h-12 p-1 bg-muted/50 rounded-xl hidden md:grid">
-              <TabsTrigger value="subjects" className="gap-2 font-bold rounded-lg data-[state=active]:shadow-sm">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 h-12 p-1 bg-muted rounded-md hidden md:grid">
+              <TabsTrigger value="subjects" className="gap-2 font-medium rounded-sm data-[state=active]:bg-background">
                 <LayoutGrid className="h-4 w-4" />
                 Subjects
               </TabsTrigger>
-              <TabsTrigger value="schedule" className="gap-2 font-bold rounded-lg data-[state=active]:shadow-sm">
+              <TabsTrigger value="schedule" className="gap-2 font-medium rounded-sm data-[state=active]:bg-background">
                 <Calendar className="h-4 w-4" />
                 Schedule
               </TabsTrigger>
@@ -309,27 +309,27 @@ const Index = () => {
             <TabsContent value="subjects" className="focus-visible:ring-0">
               {/* Summary Stats */}
               <div className={`grid gap-4 mb-8 ${bunkBudgetSummary ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
-                <div className="p-4 rounded-2xl bg-card border shadow-sm transition-all hover:shadow-md">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Total Subjects</p>
-                  <p className="text-2xl font-black">{subjects.length}</p>
+                <div className="p-4 rounded-lg bg-card border border-border/50 shadow-none">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Total Subjects</p>
+                  <p className="text-2xl font-bold">{subjects.length}</p>
                 </div>
-                <div className="p-4 rounded-2xl bg-card border shadow-sm transition-all hover:shadow-md">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Total Classes</p>
-                  <p className="text-2xl font-black">
+                <div className="p-4 rounded-lg bg-card border border-border/50 shadow-none">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Total Classes</p>
+                  <p className="text-2xl font-bold">
                     {subjects.reduce((sum, s) => sum + s.totalClasses, 0)}
                   </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-card border shadow-sm transition-all hover:shadow-md">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Overall Present</p>
-                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                <div className="p-4 rounded-lg bg-card border border-border/50 shadow-none">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Overall Present</p>
+                  <p className="text-2xl font-bold text-emerald-500">
                     {subjects.reduce((sum, s) => sum + s.classesPresent, 0)}
                   </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-card border shadow-sm transition-all hover:shadow-md">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">
+                <div className="p-4 rounded-lg bg-card border border-border/50 shadow-none">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
                     Overall Attendance
                   </p>
-                  <p className="text-2xl font-black">
+                  <p className="text-2xl font-bold">
                     {(() => {
                       const totalClasses = subjects.reduce((sum, s) => sum + s.totalClasses, 0);
                       const totalPresent = subjects.reduce((sum, s) => sum + s.classesPresent, 0);
@@ -341,25 +341,25 @@ const Index = () => {
                   </p>
                 </div>
                 {bunkBudgetSummary && (
-                  <div className={`p-4 rounded-2xl border transition-all hover:shadow-md shadow-sm ${
+                  <div className={`p-4 rounded-lg border shadow-none ${
                     bunkBudgetSummary.dangerCount > 0 
                       ? 'bg-red-500/5 border-red-500/20' 
                       : 'bg-emerald-500/5 border-emerald-500/20'
                   }`}>
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1 flex items-center gap-1">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1 flex items-center gap-1">
                       {bunkBudgetSummary.dangerCount > 0 ? (
-                        <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+                        <TrendingDown className="h-3 w-3 text-red-500" />
                       ) : (
-                        <Shield className="h-3.5 w-3.5 text-emerald-500" />
+                        <Shield className="h-3 w-3 text-emerald-500" />
                       )}
                       Bunk Budget
                     </p>
                     {bunkBudgetSummary.totalBunkable > 0 ? (
-                      <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                      <p className="text-2xl font-bold text-emerald-500">
                         {bunkBudgetSummary.totalBunkable}
                       </p>
                     ) : (
-                      <p className="text-2xl font-black text-red-600 dark:text-red-400">0</p>
+                      <p className="text-2xl font-bold text-red-500">0</p>
                     )}
                     <p className="text-[10px] font-medium text-muted-foreground">
                       {bunkBudgetSummary.dangerCount > 0

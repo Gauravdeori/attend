@@ -29,5 +29,42 @@ service cloud.firestore {
     match /user_settings/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ─── Class Management Collections ─────────────────────────────
+
+    // Classes: any authenticated user can create; members can read
+    match /classes/{classId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.teacher_id;
+    }
+
+    // Class Memberships: users can manage their own memberships, read all for a class
+    match /class_memberships/{membershipId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // Attendance Sessions: teachers can create/update, members can read
+    match /attendance_sessions/{sessionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+    }
+
+    // Class Attendance Records: students can write their own, members can read
+    match /class_attendance_records/{recordId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == resource.data.student_id;
+    }
+
+    // Announcements: teachers can create, members can read
+    match /announcements/{announcementId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.author_id;
+    }
   }
 }

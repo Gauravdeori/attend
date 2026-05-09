@@ -21,7 +21,9 @@ import {
   MoreVertical,
   KeyRound,
   FileText,
-  Table as TableIcon
+  Table as TableIcon,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Class, Announcement, AttendanceSession, ClassAttendanceRecord, ClassMembership } from '@/types/classes';
@@ -39,6 +41,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { generateAttendanceReport } from '@/lib/reportUtils';
+import { generateAIInsight } from '@/services/aiSummary';
 
 // Helper for distance calculation
 function calculateDistance(lat1?: number, lon1?: number, lat2?: number, lon2?: number) {
@@ -111,45 +114,56 @@ export default function ClassDetail() {
   const [members, setMembers] = useState<ClassMembership[]>([]);
   const [newAnnouncement, setNewAnnouncement] = useState('');
   const [isPosting, setIsPosting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [classNotFound, setClassNotFound] = useState(false);
 
-  // Load class and role
+  // Load class and role — only resolve after dbLoading is done
   useEffect(() => {
-    if (!dbLoading && classes.length > 0 && classId) {
-      const foundClass = classes.find(c => c.id === classId);
-      if (foundClass) {
-        setClassItem(foundClass);
-        const m = memberships.find(mem => mem.classId === classId);
-        setRole(m?.role || null);
-      } else {
-        toast({ title: "Error", description: "Class not found", variant: "destructive" });
-        navigate('/classes');
-      }
+    if (dbLoading || !classId) return;
+
+    const foundClass = classes.find(c => c.id === classId);
+    if (foundClass) {
+      setClassItem(foundClass);
+      const m = memberships.find(mem => mem.classId === classId);
+      setRole(m?.role || null);
+      setClassNotFound(false);
+    } else if (classes.length === 0 && memberships.length === 0) {
+      // User has no classes at all — but they might have navigated directly
+      // Give it a moment (the class might be loading)
+      setClassNotFound(true);
+    } else {
+      setClassNotFound(true);
     }
-  }, [classes, memberships, classId, dbLoading, navigate]);
+  }, [classes, memberships, classId, dbLoading]);
 
-  // Load class data
+  // Load class detail data (announcements, sessions, records, members)
   useEffect(() => {
-    if (classId) {
-      const loadData = async () => {
-        setIsLoading(true);
-        try {
-          const [a, s, r, m] = await Promise.all([
-            getAnnouncements(classId),
-            getAttendanceSessions(classId),
-            getAttendanceRecords(classId),
-            getClassMembers(classId)
-          ]);
+    if (!classId) return;
+    let cancelled = false;
+    const loadData = async () => {
+      setIsDataLoading(true);
+      try {
+        const [a, s, r, m] = await Promise.all([
+          getAnnouncements(classId),
+          getAttendanceSessions(classId),
+          getAttendanceRecords(classId),
+          getClassMembers(classId)
+        ]);
+        if (!cancelled) {
           setAnnouncements(a);
           setSessions(s);
           setRecords(r);
           setMembers(m);
-        } finally {
-          setIsLoading(false);
         }
-      };
-      loadData();
-    }
+      } catch (err) {
+        console.error('Error loading class data:', err);
+      } finally {
+        if (!cancelled) setIsDataLoading(false);
+      }
+    };
+    loadData();
+    return () => { cancelled = true; };
   }, [classId, getAnnouncements, getAttendanceSessions, getAttendanceRecords, getClassMembers]);
 
   const activeSession = useMemo(() => sessions.find(s => s.status === 'active'), [sessions]);
@@ -244,17 +258,18 @@ export default function ClassDetail() {
     });
   };
 
-  const handleGenerateReport = (format: 'pdf' | 'excel') => {
+  const handleGenerateReport = async (format: 'pdf' | 'excel') => {
     if (!classItem || members.length === 0) return;
 
-    const studentMembers = members.filter(m => m.role === 'student');
-    const totalSessions = sessions.filter(s => s.status === 'completed').length;
+    setIsGeneratingReport(true);
+    toast({ title: "Generating Report", description: "Analyzing data with AI...", duration: 4000 });
 
-    const reportData = {
-      className: classItem.name,
-      teacherName: classItem.teacherName,
-      criteria: userSettings.attendanceCriteria,
-      students: studentMembers.map(m => {
+    try {
+      const studentMembers = members.filter(m => m.role === 'student');
+      const totalSessions = sessions.filter(s => s.status === 'completed').length;
+      const criteria = userSettings?.attendanceCriteria || 75;
+
+      const mappedStudents = studentMembers.map(m => {
         const studentRecords = records.filter(r => r.studentId === m.userId && r.status === 'present');
         const attended = studentRecords.length;
         return {
@@ -264,14 +279,38 @@ export default function ClassDetail() {
           total: totalSessions,
           percentage: totalSessions > 0 ? (attended / totalSessions) * 100 : 0
         };
-      })
-    };
+      });
 
-    generateAttendanceReport(reportData, format);
-    toast({ title: "Report Generated", description: `Exporting ${format.toUpperCase()} report...` });
+      const defaulters = mappedStudents.filter(s => s.percentage < criteria).length;
+
+      const aiInsight = await generateAIInsight({
+        className: classItem.name,
+        totalStudents: mappedStudents.length,
+        defaulters,
+        criteria,
+        studentData: mappedStudents.map(s => ({ name: s.name, percentage: s.percentage }))
+      });
+
+      const reportData = {
+        className: classItem.name,
+        teacherName: classItem.teacherName,
+        criteria,
+        students: mappedStudents,
+        aiInsight
+      };
+
+      generateAttendanceReport(reportData, format);
+      toast({ title: "Report Ready", description: `Exporting ${format.toUpperCase()} report with AI Insights...` });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast({ title: "Error", description: "Failed to generate report. Please try again.", variant: "destructive" });
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
-  if (isLoading) {
+  // Show loading while DB or data is still loading
+  if (dbLoading || isDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -282,7 +321,8 @@ export default function ClassDetail() {
     );
   }
 
-  if (!classItem) {
+  // Only show not-found AFTER loading is complete
+  if (classNotFound || !classItem) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-background p-6 text-center">
         <div className="p-4 rounded-full bg-red-500/10 mb-4">
@@ -300,19 +340,18 @@ export default function ClassDetail() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Class Banner */}
-      <div className="relative h-48 md:h-64 bg-gradient-to-r from-primary/80 to-primary overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-        <div className="container mx-auto px-6 h-full flex flex-col justify-end pb-8">
+      <div className="relative h-48 md:h-64 bg-card border-b border-border/50 flex flex-col justify-end pb-8">
+        <div className="container mx-auto px-6 h-full flex flex-col justify-end">
           <Button 
             variant="ghost" 
-            className="w-fit mb-4 text-primary-foreground hover:bg-white/10 gap-2 font-bold rounded-xl"
+            className="w-fit mb-4 text-muted-foreground hover:bg-muted gap-2 font-medium rounded-md"
             onClick={() => navigate('/classes')}
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Classes
           </Button>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight line-clamp-1">{classItem.name}</h1>
-          <p className="text-primary-foreground/80 font-bold mt-2 flex items-center gap-2">
+          <h1 className="text-3xl md:text-5xl font-semibold text-foreground tracking-tight line-clamp-1">{classItem.name}</h1>
+          <p className="text-muted-foreground font-medium mt-2 flex items-center gap-2">
             <UserIcon className="h-4 w-4" />
             {classItem.teacherName}
           </p>
@@ -321,20 +360,20 @@ export default function ClassDetail() {
 
       <div className="container mx-auto px-4 md:px-6 mt-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="h-14 p-1 bg-muted/50 rounded-2xl border mb-8 flex-wrap justify-start sm:justify-center overflow-x-auto overflow-y-hidden">
-            <TabsTrigger value="stream" className="rounded-xl px-4 md:px-8 font-bold data-[state=active]:shadow-sm gap-2">
+          <TabsList className="h-14 p-1 bg-transparent border-b border-border/50 mb-8 flex-wrap justify-start sm:justify-center overflow-x-auto overflow-y-hidden rounded-none">
+            <TabsTrigger value="stream" className="rounded-md px-4 md:px-8 font-medium data-[state=active]:bg-muted gap-2">
               <MessageSquare className="h-4 w-4" />
               Stream
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="rounded-xl px-4 md:px-8 font-bold data-[state=active]:shadow-sm gap-2">
+            <TabsTrigger value="attendance" className="rounded-md px-4 md:px-8 font-medium data-[state=active]:bg-muted gap-2">
               <CalendarCheck className="h-4 w-4" />
               Attendance
             </TabsTrigger>
-            <TabsTrigger value="students" className="rounded-xl px-4 md:px-8 font-bold data-[state=active]:shadow-sm gap-2">
+            <TabsTrigger value="students" className="rounded-md px-4 md:px-8 font-medium data-[state=active]:bg-muted gap-2">
               <Users className="h-4 w-4" />
               People
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="rounded-xl px-4 md:px-8 font-bold data-[state=active]:shadow-sm gap-2">
+            <TabsTrigger value="analytics" className="rounded-md px-4 md:px-8 font-medium data-[state=active]:bg-muted gap-2">
               <BarChart3 className="h-4 w-4" />
               Analytics
             </TabsTrigger>
@@ -344,31 +383,31 @@ export default function ClassDetail() {
             {/* Sidebar info (Code/Actions) */}
             <div className="space-y-6">
               {role === 'teacher' && (
-                <Card className="rounded-3xl border-2 shadow-sm overflow-hidden">
-                  <CardHeader className="bg-muted/30 pb-4">
-                    <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Card className="rounded-lg border border-border/50 shadow-none overflow-hidden bg-card">
+                  <CardHeader className="bg-muted/20 pb-4 border-b border-border/20">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                       <KeyRound className="h-4 w-4" />
                       Class Code
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-4 flex items-center justify-between">
-                    <code className="text-2xl font-black text-primary tracking-widest">{classItem.joinCode}</code>
-                    <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary" onClick={handleCopyCode}>
-                      <Copy className="h-5 w-5" />
+                    <code className="text-2xl font-semibold text-foreground tracking-widest">{classItem.joinCode}</code>
+                    <Button variant="ghost" size="icon" className="rounded-md hover:bg-muted text-muted-foreground" onClick={handleCopyCode}>
+                      <Copy className="h-4 w-4" />
                     </Button>
                   </CardContent>
                 </Card>
               )}
 
               {activeSession ? (
-                <Card className="rounded-3xl border-2 border-emerald-500/50 bg-emerald-500/5 shadow-lg animate-pulse">
+                <Card className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 shadow-none">
                   <CardHeader>
                     <div className="flex items-center justify-between mb-2">
-                      <Badge className="bg-emerald-500 hover:bg-emerald-600 font-bold uppercase tracking-widest text-[10px]">Active Now</Badge>
+                      <Badge className="bg-emerald-500 hover:bg-emerald-600 font-medium uppercase text-[10px] text-white">Active Now</Badge>
                       <Clock className="h-4 w-4 text-emerald-500" />
                     </div>
-                    <CardTitle className="text-lg font-black text-emerald-600 dark:text-emerald-400">Attendance Session</CardTitle>
-                    <CardDescription className="text-xs font-bold flex items-center gap-1">
+                    <CardTitle className="text-lg font-semibold text-emerald-500">Attendance Session</CardTitle>
+                    <CardDescription className="text-xs font-medium flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       Verification Radius: {activeSession?.location?.radius || 50}m
                     </CardDescription>
@@ -377,16 +416,16 @@ export default function ClassDetail() {
                     {role === 'student' ? (
                       <Button 
                         onClick={handleMarkAttendance}
-                        className="w-full h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-lg gap-2"
+                        className="w-full h-12 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm gap-2"
                       >
-                        <CheckCircle2 className="h-5 w-5" />
+                        <CheckCircle2 className="h-4 w-4" />
                         Mark Present
                       </Button>
                     ) : (
                       <Button 
                         onClick={handleEndSession}
                         variant="destructive"
-                        className="w-full h-12 rounded-2xl font-black text-lg gap-2"
+                        className="w-full h-12 rounded-md font-semibold text-sm gap-2"
                       >
                         Stop Session
                       </Button>
@@ -411,23 +450,23 @@ export default function ClassDetail() {
               <TabsContent value="stream" className="m-0 space-y-6">
                 {/* Announcement Input */}
                 {role === 'teacher' && (
-                  <Card className="rounded-[2rem] border-2 border-primary/10 shadow-sm overflow-hidden focus-within:border-primary/30 transition-colors">
+                  <Card className="rounded-lg border border-border/50 shadow-none overflow-hidden bg-card">
                     <CardContent className="p-4 flex items-center gap-4">
-                      <Avatar className="h-10 w-10 border-2 border-primary/20">
-                        <AvatarFallback className="bg-primary/5 text-primary font-black">
+                      <Avatar className="h-10 w-10 border border-border/50">
+                        <AvatarFallback className="bg-muted text-muted-foreground font-medium">
                           {user?.displayName?.substring(0, 1) || "T"}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 flex items-center gap-2">
                         <Input 
                           placeholder="Announce something to your class..." 
-                          className="border-none shadow-none focus-visible:ring-0 text-lg font-medium p-0 h-auto"
+                          className="border-none shadow-none focus-visible:ring-0 text-sm p-0 h-auto bg-transparent"
                           value={newAnnouncement}
                           onChange={(e) => setNewAnnouncement(e.target.value)}
                         />
                         <Button 
                           size="icon" 
-                          className="rounded-xl h-10 w-10" 
+                          className="rounded-md h-10 w-10" 
                           disabled={!newAnnouncement.trim() || isPosting}
                           onClick={handlePostAnnouncement}
                         >

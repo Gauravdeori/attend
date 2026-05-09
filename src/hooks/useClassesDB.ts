@@ -11,9 +11,7 @@ import {
   serverTimestamp, 
   getDoc,
   setDoc,
-  Timestamp,
-  orderBy,
-  limit
+  Timestamp
 } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +22,19 @@ import {
   ClassAttendanceRecord, 
   Announcement 
 } from '@/types/classes';
+
+// Helper to prevent Firestore operations from hanging indefinitely
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) =>
+      setTimeout(() => {
+        console.warn(`Firestore query timed out after ${ms}ms, using fallback`);
+        resolve(fallback);
+      }, ms)
+    ),
+  ]);
+}
 
 export function useClassesDB() {
   const { user } = useAuth();
@@ -46,7 +57,7 @@ export function useClassesDB() {
         collection(db, 'class_memberships'),
         where('user_id', '==', user.uid)
       );
-      const membershipSnap = await getDocs(membershipQuery);
+      const membershipSnap = await withTimeout(getDocs(membershipQuery), 8000, { docs: [] } as any);
       const fetchedMemberships: ClassMembership[] = membershipSnap.docs.map(d => {
         const data = d.data();
         return {
@@ -81,7 +92,7 @@ export function useClassesDB() {
           collection(db, 'classes'),
           where('__name__', 'in', chunk)
         );
-        const classesSnap = await getDocs(classesQuery);
+        const classesSnap = await withTimeout(getDocs(classesQuery), 8000, { docs: [] } as any);
         classesSnap.docs.forEach(d => {
           const data = d.data();
           classesData.push({
@@ -245,15 +256,14 @@ export function useClassesDB() {
     }
   };
 
-  const getAttendanceSessions = async (classId: string) => {
+  const getAttendanceSessions = useCallback(async (classId: string) => {
     try {
       const q = query(
         collection(db, 'attendance_sessions'),
-        where('class_id', '==', classId),
-        orderBy('start_time', 'desc')
+        where('class_id', '==', classId)
       );
-      const snap = await getDocs(q);
-      return snap.docs.map(d => {
+      const snap = await withTimeout(getDocs(q), 8000, { docs: [] } as any);
+      const results = snap.docs.map(d => {
         const data = d.data();
         return {
           id: d.id,
@@ -265,11 +275,17 @@ export function useClassesDB() {
           location: data.location
         };
       }) as AttendanceSession[];
+      // Sort client-side (desc by startTime) to avoid needing a composite index
+      return results.sort((a, b) => {
+        const aTime = a.startTime?.toDate?.() ?? new Date(0);
+        const bTime = b.startTime?.toDate?.() ?? new Date(0);
+        return bTime.getTime() - aTime.getTime();
+      });
     } catch (error) {
       console.error('Error fetching sessions:', error);
       return [];
     }
-  };
+  }, []);
 
   const startSession = async (classId: string, location: { lat: number, lng: number, radius: number }) => {
     if (!user) return null;
@@ -299,7 +315,7 @@ export function useClassesDB() {
     try {
       await updateDoc(doc(db, 'attendance_sessions', sessionId), {
         status: 'completed',
-        endTime: serverTimestamp(),
+        end_time: serverTimestamp(),
       });
       return true;
     } catch (error: unknown) {
@@ -345,15 +361,14 @@ export function useClassesDB() {
     }
   };
 
-  const getAttendanceRecords = async (classId: string) => {
+  const getAttendanceRecords = useCallback(async (classId: string) => {
     try {
       const q = query(
         collection(db, 'class_attendance_records'),
-        where('class_id', '==', classId),
-        orderBy('timestamp', 'desc')
+        where('class_id', '==', classId)
       );
-      const snap = await getDocs(q);
-      return snap.docs.map(d => {
+      const snap = await withTimeout(getDocs(q), 8000, { docs: [] } as any);
+      const results = snap.docs.map(d => {
         const data = d.data();
         return {
           id: d.id,
@@ -366,21 +381,26 @@ export function useClassesDB() {
           locationVerified: data.location_verified
         };
       }) as ClassAttendanceRecord[];
+      // Sort client-side (desc by timestamp)
+      return results.sort((a, b) => {
+        const aTime = a.timestamp?.toDate?.() ?? new Date(0);
+        const bTime = b.timestamp?.toDate?.() ?? new Date(0);
+        return bTime.getTime() - aTime.getTime();
+      });
     } catch (error) {
       console.error('Error fetching records:', error);
       return [];
     }
-  };
+  }, []);
 
-  const getAnnouncements = async (classId: string) => {
+  const getAnnouncements = useCallback(async (classId: string) => {
     try {
       const q = query(
         collection(db, 'announcements'),
-        where('class_id', '==', classId),
-        orderBy('created_at', 'desc')
+        where('class_id', '==', classId)
       );
-      const snap = await getDocs(q);
-      return snap.docs.map(d => {
+      const snap = await withTimeout(getDocs(q), 8000, { docs: [] } as any);
+      const results = snap.docs.map(d => {
         const data = d.data();
         return {
           id: d.id,
@@ -391,11 +411,17 @@ export function useClassesDB() {
           createdAt: data.created_at
         };
       }) as Announcement[];
+      // Sort client-side (desc by createdAt)
+      return results.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.() ?? new Date(0);
+        const bTime = b.createdAt?.toDate?.() ?? new Date(0);
+        return bTime.getTime() - aTime.getTime();
+      });
     } catch (error) {
       console.error('Error fetching announcements:', error);
       return [];
     }
-  };
+  }, []);
 
   const postAnnouncement = async (classId: string, content: string) => {
     if (!user) return null;
@@ -420,13 +446,13 @@ export function useClassesDB() {
     }
   };
 
-  const getClassMembers = async (classId: string): Promise<ClassMembership[]> => {
+  const getClassMembers = useCallback(async (classId: string): Promise<ClassMembership[]> => {
     try {
       const q = query(
         collection(db, 'class_memberships'),
         where('class_id', '==', classId)
       );
-      const snap = await getDocs(q);
+      const snap = await withTimeout(getDocs(q), 8000, { docs: [] } as any);
       
       return snap.docs.map(d => {
         const data = d.data();
@@ -444,7 +470,7 @@ export function useClassesDB() {
       console.error('Error fetching members:', error);
       return [];
     }
-  };
+  }, []);
 
   return {
     classes,

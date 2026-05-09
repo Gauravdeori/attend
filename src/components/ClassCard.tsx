@@ -13,38 +13,38 @@ interface ClassCardProps {
 export function ClassCard({ classItem, role }: ClassCardProps) {
   return (
     <Link to={`/classes/${classItem.id}`}>
-      <Card className="group overflow-hidden rounded-3xl border-2 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/50 bg-card/50 backdrop-blur-sm h-full flex flex-col">
-        <div className="h-24 bg-gradient-to-br from-primary/20 via-primary/10 to-background p-6 flex justify-between items-start">
-          <div className="p-3 bg-background/80 backdrop-blur-md rounded-2xl shadow-sm border border-primary/10">
-            <BookOpen className="h-6 w-6 text-primary" />
+      <Card className="group overflow-hidden rounded-lg border border-border/50 transition-all duration-300 hover:border-primary/50 bg-card h-full flex flex-col shadow-none">
+        <div className="h-20 bg-muted/20 border-b border-border/50 p-4 flex justify-between items-start">
+          <div className="p-2 bg-background rounded-md border border-border/50">
+            <BookOpen className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
-          <Badge variant="outline" className="bg-background/50 border-primary/20 font-bold uppercase tracking-widest text-[10px]">
+          <Badge variant="outline" className="bg-background font-medium uppercase tracking-widest text-[10px]">
             {role}
           </Badge>
         </div>
         
-        <CardHeader className="pt-4 px-6">
-          <CardTitle className="text-xl font-black group-hover:text-primary transition-colors line-clamp-1">
+        <CardHeader className="pt-4 px-5">
+          <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-1">
             {classItem.name}
           </CardTitle>
           <div className="flex items-center gap-2 text-muted-foreground mt-1">
             <User className="h-3.5 w-3.5" />
-            <span className="text-xs font-bold">{classItem.teacherName}</span>
+            <span className="text-xs font-medium">{classItem.teacherName}</span>
           </div>
         </CardHeader>
 
-        <CardContent className="px-6 py-2 flex-1">
-          <p className="text-sm text-muted-foreground line-clamp-2 font-medium">
+        <CardContent className="px-5 py-2 flex-1">
+          <p className="text-sm text-muted-foreground line-clamp-2">
             {classItem.description || "No description provided."}
           </p>
         </CardContent>
 
-        <CardFooter className="px-6 py-4 border-t border-border/50 bg-muted/20 flex justify-between items-center mt-auto">
+        <CardFooter className="px-5 py-3 border-t border-border/50 bg-muted/10 flex justify-between items-center mt-auto">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
-            <span className="text-xs font-black uppercase tracking-wider">Members</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Members</span>
           </div>
-          <Button variant="ghost" size="sm" className="rounded-xl font-bold gap-2 group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+          <Button variant="ghost" size="sm" className="rounded-md font-medium gap-2 group-hover:bg-primary group-hover:text-primary-foreground transition-all">
             Enter Class
             <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
