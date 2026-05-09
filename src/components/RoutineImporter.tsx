@@ -307,7 +307,7 @@ export function RoutineImporter({ onImport }: RoutineImporterProps) {
         </div>
 
         <DialogFooter className="text-[10px] text-muted-foreground text-center">
-          Powered by NVIDIA AI • Always verify extracted data.
+          Powered by Gemini AI • Always verify extracted data.
         </DialogFooter>
       </DialogContent>
     </Dialog>

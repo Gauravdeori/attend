@@ -24,7 +24,7 @@ export interface AnalysisResponse {
   schedule: ExtractedScheduleSlot[];
 }
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyAjdrAMmJhk4lg-aNSTxmJOsY00mvSpkZo";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 // Using gemini-2.5-flash based on API key permissions
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
