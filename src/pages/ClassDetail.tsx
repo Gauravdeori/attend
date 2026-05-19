@@ -215,7 +215,7 @@ export default function ClassDetail() {
       }
     }, () => {
       toast({ title: "Error", description: "Failed to get location. Location is required to start a session.", variant: "destructive" });
-    });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   };
 
   const handleEndSession = async () => {
@@ -268,7 +268,7 @@ export default function ClassDetail() {
       }
     }, () => {
       toast({ title: "Error", description: "Failed to get location. Location is required for attendance.", variant: "destructive" });
-    });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   };
 
   const handleGenerateReport = async (format: 'pdf' | 'excel') => {
