@@ -207,7 +207,7 @@ export default function ClassDetail() {
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
-      const id = await startSession(classId, { lat: latitude, lng: longitude, radius: 50 }); // 50m radius default
+      const id = await startSession(classId, { lat: latitude, lng: longitude, radius: 200 }); // 200m radius default
       if (id) {
         const updated = await getAttendanceSessions(classId);
         setSessions(updated);
@@ -248,7 +248,7 @@ export default function ClassDetail() {
         activeSession?.location?.lat, activeSession?.location?.lng
       );
 
-      const verified = distance <= (activeSession?.location?.radius || 50);
+      const verified = distance <= (activeSession?.location?.radius || 200);
       
       if (!verified) {
         toast({ 
@@ -484,7 +484,7 @@ export default function ClassDetail() {
                     </CardTitle>
                     <CardDescription className="text-xs font-medium flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      Verification Radius: {activeSession?.location?.radius || 50}m
+                      Verification Radius: {activeSession?.location?.radius || 200}m
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
