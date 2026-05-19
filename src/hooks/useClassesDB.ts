@@ -273,6 +273,7 @@ export function useClassesDB() {
           endTime: data.end_time,
           status: data.status,
           type: data.type || 'gps',
+          pin: data.pin,
           location: data.location || null
         };
       }) as AttendanceSession[];
@@ -291,6 +292,7 @@ export function useClassesDB() {
   const startSession = async (classId: string, location: { lat: number, lng: number, radius: number }) => {
     if (!user) return null;
     try {
+      const pin = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit pin
       const sessionData = {
         class_id: classId,
         teacher_id: user.uid,
@@ -298,6 +300,7 @@ export function useClassesDB() {
         end_time: null,
         status: 'active',
         location,
+        pin,
       };
       const ref = await addDoc(collection(db, 'attendance_sessions'), sessionData);
       return ref.id;

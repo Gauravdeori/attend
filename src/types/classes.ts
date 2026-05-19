@@ -27,6 +27,7 @@ export interface AttendanceSession {
   endTime: Timestamp | null;
   status: 'active' | 'completed';
   type?: 'gps' | 'manual';
+  pin?: string;
   location: {
     lat: number;
     lng: number;

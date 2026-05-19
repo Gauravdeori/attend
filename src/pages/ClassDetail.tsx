@@ -123,6 +123,7 @@ export default function ClassDetail() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [classNotFound, setClassNotFound] = useState(false);
   const [showSwipeAttendance, setShowSwipeAttendance] = useState(false);
+  const [pinInput, setPinInput] = useState('');
 
   // Load class and role — only resolve after dbLoading is done
   useEffect(() => {
@@ -230,6 +231,11 @@ export default function ClassDetail() {
   const handleMarkAttendance = async () => {
     if (!activeSession || !classId) return;
 
+    if (activeSession.pin && activeSession.pin !== pinInput) {
+      toast({ title: "Invalid PIN", description: "The PIN you entered is incorrect.", variant: "destructive" });
+      return;
+    }
+
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "Geolocation is not supported by your browser.", variant: "destructive" });
       return;
@@ -257,6 +263,7 @@ export default function ClassDetail() {
       if (success) {
         const updated = await getAttendanceRecords(classId);
         setRecords(updated);
+        setPinInput(''); // Clear pin after success
         toast({ title: "Success", description: "You have been marked present!" });
       }
     }, () => {
@@ -467,7 +474,14 @@ export default function ClassDetail() {
                       <Badge className="bg-emerald-500 hover:bg-emerald-600 font-medium uppercase text-[10px] text-white">Active Now</Badge>
                       <Clock className="h-4 w-4 text-emerald-500" />
                     </div>
-                    <CardTitle className="text-lg font-semibold text-emerald-500">Attendance Session</CardTitle>
+                    <CardTitle className="text-lg font-semibold text-emerald-500 flex items-center justify-between">
+                      <span>Attendance Session</span>
+                      {activeSession.pin && role === 'teacher' && (
+                        <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-md tracking-widest text-xl">
+                          {activeSession.pin}
+                        </span>
+                      )}
+                    </CardTitle>
                     <CardDescription className="text-xs font-medium flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       Verification Radius: {activeSession?.location?.radius || 50}m
@@ -475,13 +489,23 @@ export default function ClassDetail() {
                   </CardHeader>
                   <CardContent>
                     {role === 'student' ? (
-                      <Button 
-                        onClick={handleMarkAttendance}
-                        className="w-full h-12 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm gap-2"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Mark Present
-                      </Button>
+                      <div className="space-y-3">
+                        <Input 
+                          placeholder="Enter 4-digit PIN" 
+                          value={pinInput} 
+                          onChange={(e) => setPinInput(e.target.value)}
+                          maxLength={4}
+                          className="text-center tracking-widest font-black text-lg h-12"
+                        />
+                        <Button 
+                          onClick={handleMarkAttendance}
+                          disabled={pinInput.length !== 4}
+                          className="w-full h-12 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm gap-2"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Mark Present
+                        </Button>
+                      </div>
                     ) : (
                       <Button 
                         onClick={handleEndSession}
