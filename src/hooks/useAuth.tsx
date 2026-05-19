@@ -12,14 +12,6 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/integrations/firebase/client';
 
-// Mock Guest User for No-Auth Mode
-const GUEST_USER = {
-  uid: 'guest_user_default',
-  email: 'guest@attendancehub.in',
-  displayName: 'Guest User',
-  photoURL: null,
-} as User;
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -33,13 +25,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(GUEST_USER); // Default to guest
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      // If firebase user exists, use it. Otherwise, use guest user.
-      setUser(firebaseUser || GUEST_USER);
+      setUser(firebaseUser);
       setLoading(false);
     });
 
@@ -89,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUserProfile = async (displayName: string) => {
-    const currentUser = auth.currentUser || GUEST_USER;
     if (auth.currentUser) {
       try {
         await updateProfile(auth.currentUser, { displayName });
@@ -99,15 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error };
       }
     } else {
-      // For guest, just update local state
-      setUser({ ...GUEST_USER, displayName });
-      return { error: null };
+      return { error: new Error('No user is currently signed in') };
     }
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
-    setUser(GUEST_USER); // Fallback to guest
+    setUser(null);
   };
 
   return (

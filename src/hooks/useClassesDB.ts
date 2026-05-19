@@ -272,7 +272,8 @@ export function useClassesDB() {
           startTime: data.start_time,
           endTime: data.end_time,
           status: data.status,
-          location: data.location
+          type: data.type || 'gps',
+          location: data.location || null
         };
       }) as AttendanceSession[];
       // Sort client-side (desc by startTime) to avoid needing a composite index
@@ -354,6 +355,64 @@ export function useClassesDB() {
       const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: 'Error marking attendance',
+        description: message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  // ─── Manual Swipe Attendance ─────────────────────────────────────
+
+  const startManualSession = async (classId: string) => {
+    if (!user) return null;
+    try {
+      const sessionData = {
+        class_id: classId,
+        teacher_id: user.uid,
+        start_time: serverTimestamp(),
+        end_time: null,
+        status: 'active',
+        type: 'manual',
+        location: null,
+      };
+      const ref = await addDoc(collection(db, 'attendance_sessions'), sessionData);
+      return ref.id;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        title: 'Error starting manual session',
+        description: message,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  const markAttendanceForStudent = async (
+    sessionId: string,
+    classId: string,
+    studentId: string,
+    studentName: string,
+    status: 'present' | 'absent'
+  ) => {
+    if (!user) return false;
+    try {
+      const recordData = {
+        session_id: sessionId,
+        class_id: classId,
+        student_id: studentId,
+        student_name: studentName,
+        timestamp: serverTimestamp(),
+        status,
+        location_verified: false,
+      };
+      await setDoc(doc(db, 'class_attendance_records', `${studentId}_${sessionId}`), recordData);
+      return true;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        title: 'Error marking student attendance',
         description: message,
         variant: 'destructive',
       });
@@ -480,8 +539,10 @@ export function useClassesDB() {
     joinClass,
     getAttendanceSessions,
     startSession,
+    startManualSession,
     endSession,
     markAttendance,
+    markAttendanceForStudent,
     getAttendanceRecords,
     getAnnouncements,
     postAnnouncement,

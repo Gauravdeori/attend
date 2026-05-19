@@ -26,11 +26,12 @@ export interface AttendanceSession {
   startTime: Timestamp;
   endTime: Timestamp | null;
   status: 'active' | 'completed';
+  type?: 'gps' | 'manual';
   location: {
     lat: number;
     lng: number;
     radius: number; // in meters
-  };
+  } | null;
   teacherId: string;
 }
 

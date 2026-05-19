@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClassesDB } from '@/hooks/useClassesDB';
+import { SwipeAttendance } from '@/components/SwipeAttendance';
+import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useAttendanceDB } from '@/hooks/useAttendanceDB';
 import { Button } from '@/components/ui/button';
@@ -23,7 +25,8 @@ import {
   FileText,
   Table as TableIcon,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  HandMetal
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Class, Announcement, AttendanceSession, ClassAttendanceRecord, ClassMembership } from '@/types/classes';
@@ -99,8 +102,10 @@ export default function ClassDetail() {
     postAnnouncement,
     getAttendanceSessions,
     startSession,
+    startManualSession,
     endSession,
     markAttendance,
+    markAttendanceForStudent,
     getAttendanceRecords,
     getClassMembers
   } = useClassesDB();
@@ -117,6 +122,7 @@ export default function ClassDetail() {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [classNotFound, setClassNotFound] = useState(false);
+  const [showSwipeAttendance, setShowSwipeAttendance] = useState(false);
 
   // Load class and role — only resolve after dbLoading is done
   useEffect(() => {
@@ -309,6 +315,49 @@ export default function ClassDetail() {
     }
   };
 
+  // ─── Manual Swipe Attendance Handler ──────────────────────
+  const handleManualAttendance = () => {
+    const studentMembers = members.filter(m => m.role === 'student');
+    if (studentMembers.length === 0) {
+      toast({ title: 'No Students', description: 'No students have joined this class yet.', variant: 'destructive' });
+      return;
+    }
+    setShowSwipeAttendance(true);
+  };
+
+  const handleSwipeComplete = async (results: { member: ClassMembership; status: 'present' | 'absent' }[]) => {
+    if (!classId) return;
+    // Create a manual session
+    const sessionId = await startManualSession(classId);
+    if (!sessionId) return;
+
+    // Batch write all attendance records
+    const promises = results.map(r =>
+      markAttendanceForStudent(
+        sessionId,
+        classId,
+        r.member.userId,
+        r.member.studentName || 'Student',
+        r.status
+      )
+    );
+    await Promise.all(promises);
+
+    // End the session immediately
+    await endSession(sessionId);
+
+    // Refresh data
+    const [updatedSessions, updatedRecords] = await Promise.all([
+      getAttendanceSessions(classId),
+      getAttendanceRecords(classId)
+    ]);
+    setSessions(updatedSessions);
+    setRecords(updatedRecords);
+
+    setShowSwipeAttendance(false);
+    toast({ title: 'Attendance Saved', description: `Marked ${results.filter(r => r.status === 'present').length} present, ${results.filter(r => r.status === 'absent').length} absent.` });
+  };
+
   // Show loading while DB or data is still loading
   if (dbLoading || isDataLoading) {
     return (
@@ -338,6 +387,18 @@ export default function ClassDetail() {
   }
 
   return (
+    <>
+    {/* Swipe Attendance Overlay */}
+    <AnimatePresence>
+      {showSwipeAttendance && (
+        <SwipeAttendance
+          members={members}
+          onComplete={handleSwipeComplete}
+          onClose={() => setShowSwipeAttendance(false)}
+        />
+      )}
+    </AnimatePresence>
+
     <div className="min-h-screen bg-background pb-20">
       {/* Class Banner */}
       <div className="relative h-48 md:h-64 bg-card border-b border-border/50 flex flex-col justify-end pb-8">
@@ -434,13 +495,23 @@ export default function ClassDetail() {
                 </Card>
               ) : (
                 role === 'teacher' && (
-                  <Button 
-                    onClick={handleStartSession}
-                    className="w-full h-14 rounded-2xl bg-primary shadow-xl shadow-primary/20 font-black text-lg gap-3 transition-transform hover:scale-[1.02]"
-                  >
-                    <CalendarCheck className="h-6 w-6" />
-                    Start Session
-                  </Button>
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={handleStartSession}
+                      className="w-full h-14 rounded-2xl bg-primary shadow-xl shadow-primary/20 font-black text-lg gap-3 transition-transform hover:scale-[1.02]"
+                    >
+                      <CalendarCheck className="h-6 w-6" />
+                      GPS Session
+                    </Button>
+                    <Button 
+                      onClick={handleManualAttendance}
+                      variant="outline"
+                      className="w-full h-14 rounded-2xl border-2 border-primary/20 hover:border-primary/50 font-black text-lg gap-3 transition-all hover:bg-primary/5"
+                    >
+                      <HandMetal className="h-6 w-6" />
+                      Manual Swipe
+                    </Button>
+                  </div>
                 )
               )}
             </div>
@@ -664,6 +735,7 @@ export default function ClassDetail() {
         </Tabs>
       </div>
     </div>
+    </>
   );
 }
 
