@@ -92,7 +92,7 @@ function formatDate(timestamp: any) {
 export default function ClassDetail() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { userSettings } = useAttendanceDB();
   const { 
     classes, 
@@ -133,7 +133,7 @@ export default function ClassDetail() {
     if (foundClass) {
       setClassItem(foundClass);
       const m = memberships.find(mem => mem.classId === classId);
-      setRole(m?.role || null);
+      setRole(profile?.role === 'admin' ? 'teacher' : (m?.role || null));
       setClassNotFound(false);
     } else if (classes.length === 0 && memberships.length === 0) {
       // User has no classes at all — but they might have navigated directly

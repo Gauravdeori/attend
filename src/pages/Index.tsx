@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAttendanceDB } from '@/hooks/useAttendanceDB';
 import { useAuth } from '@/hooks/useAuth';
 import { useReminders } from '@/hooks/useReminders';
@@ -38,7 +39,17 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
+  
+  // Redirect admins and teachers to their appropriate view
+  if (profile) {
+    if (profile.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else if (profile.role === 'teacher') {
+      return <Navigate to="/classes" replace />;
+    }
+  }
+
   const { isInstallable, isIOS, installApp, isInstalled } = usePWA();
   const {
     subjects,

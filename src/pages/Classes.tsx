@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function Classes() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { classes, memberships, isLoading, createClass, joinClass } = useClassesDB();
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -68,13 +68,15 @@ export default function Classes() {
             <Search className="h-4 w-4" />
             Join Class
           </Button>
-          <Button 
-            onClick={() => setShowCreate(true)} 
-            className="h-10 px-4 rounded-md font-medium gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Create Class
-          </Button>
+          {profile?.role !== 'student' && (
+            <Button 
+              onClick={() => setShowCreate(true)} 
+              className="h-10 px-4 rounded-md font-medium gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create Class
+            </Button>
+          )}
         </div>
       </div>
 
@@ -94,9 +96,11 @@ export default function Classes() {
             <Button onClick={() => setShowJoin(true)} variant="outline" className="rounded-md font-medium">
               Join Class
             </Button>
-            <Button onClick={() => setShowCreate(true)} className="rounded-md font-medium">
-              Create My First Class
-            </Button>
+            {profile?.role !== 'student' && (
+              <Button onClick={() => setShowCreate(true)} className="rounded-md font-medium">
+                Create My First Class
+              </Button>
+            )}
           </div>
         </div>
       ) : (

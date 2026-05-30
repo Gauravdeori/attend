@@ -1,52 +1,43 @@
-# PresentIQ
+# PresentIQ — Attendance Management System
 
-A simple and smart attendance tracker for students to manage subject-wise attendance and percentage.
+PresentIQ is a role-based attendance management platform designed for educational institutions, teachers, and students. Built with a cool light design system, it provides administrative tools, active tracking sessions, and student self-tracking dashboards.
 
 ## Features
 
-- Track class attendance subject-wise.
-- Automatic percentage calculation.
-- User-friendly interface with shadcn/ui components.
-- Responsive design for mobile and desktop.
+- **Role Selection at Signup**: Choice of registering as Admin, Teacher, or Student.
+- **Admin Dashboard**: Institutional management of classes, teachers, students, and overall metrics.
+- **Bulk CSV Student Importer**: Effortlessly enroll entire student cohorts using name, roll number, and email.
+- **Auto-Resolution Enrollment**: CSV-imported student accounts link automatically when students register with their emails.
+- **Educator Console**: Class creations, session scheduling, posting announcements, and taking live attendance.
+- **Student self-tracker**: Check attendance stats, subject percentage criteria, and manage bunk schedules.
+- **Cool Light Theme**: Sleek cyan-and-slate design system optimizing visual clarity and readability.
 
 ## Technologies Used
 
-- **Framework:** React with Vite
+- **Framework:** React 18 + Vite
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS
+- **Styling:** Tailwind CSS + custom cool light values
 - **Components:** shadcn/ui
 - **Icons:** Lucide React
-- **Database/Auth:** Firebase
+- **Database & Auth:** Firebase (Auth + Firestore)
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js & npm installed.
+- Node.js & npm / bun installed.
 
 ### Installation
 
-1. Clone the repository:
-   ```sh
-   git clone <YOUR_GIT_URL>
-   ```
-
-2. Install dependencies:
+1. Install dependencies:
    ```sh
    npm install
    ```
 
-3. Start the development server:
+2. Start the development server:
    ```sh
    npm run dev
    ```
-
-## Development
-
-- `npm run dev`: Start the development server.
-- `npm run build`: Build the project for production.
-- `npm run lint`: Lint the codebase.
-- `npm run test`: Run tests with Vitest.
 
 ## Author
 

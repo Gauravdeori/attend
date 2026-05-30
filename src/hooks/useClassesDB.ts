@@ -37,7 +37,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 }
 
 export function useClassesDB() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
   const [memberships, setMemberships] = useState<ClassMembership[]>([]);
@@ -52,7 +52,50 @@ export function useClassesDB() {
     }
 
     try {
-      // Get all memberships for the user
+      // If user is an Admin, fetch all classes in their institution
+      if (profile?.role === 'admin') {
+        if (!profile.institutionId) {
+          setClasses([]);
+          setMemberships([]);
+          setIsLoading(false);
+          return;
+        }
+
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('institution_id', '==', profile.institutionId)
+        );
+        const classesSnap = await withTimeout(getDocs(classesQuery), 8000, { docs: [] } as any);
+        const classesData: Class[] = classesSnap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            name: data.name,
+            description: data.description,
+            joinCode: data.join_code,
+            teacherId: data.teacher_id,
+            teacherName: data.teacher_name,
+            createdAt: data.created_at
+          };
+        });
+
+        setClasses(classesData);
+
+        // Map mock teacher memberships for the admin to get full access
+        const adminMemberships: ClassMembership[] = classesData.map(c => ({
+          id: `${user.uid}_${c.id}`,
+          classId: c.id,
+          userId: user.uid,
+          role: 'teacher',
+          joinedAt: c.createdAt
+        }));
+
+        setMemberships(adminMemberships);
+        setIsLoading(false);
+        return;
+      }
+
+      // Normal Flow for Teachers and Students: Get all memberships for the user
       const membershipQuery = query(
         collection(db, 'class_memberships'),
         where('user_id', '==', user.uid)
@@ -81,8 +124,6 @@ export function useClassesDB() {
 
       // Get the class details for those memberships
       const classIds = fetchedMemberships.map(m => m.classId);
-      // Firestore 'in' query supports up to 10-30 IDs usually, but let's assume it's fine for now
-      // If there are many classes, we might need to chunk this
       const classesData: Class[] = [];
       
       // Fetch classes in chunks of 10
@@ -119,7 +160,7 @@ export function useClassesDB() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [user, profile, toast]);
 
   useEffect(() => {
     fetchUserClasses();
@@ -129,50 +170,35 @@ export function useClassesDB() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  const createClass = async (name: string, description: string) => {
+  const createClass = async (name: string, description: string, assignedTeacherId?: string, assignedTeacherName?: string) => {
     if (!user) return null;
 
     try {
       const joinCode = generateJoinCode();
+      const teacherId = assignedTeacherId || user.uid;
+      const teacherName = assignedTeacherName || user.displayName || 'Teacher';
+
       const classData = {
         name,
         description,
         join_code: joinCode,
-        teacher_id: user.uid,
-        teacher_name: user.displayName || 'Teacher',
+        teacher_id: teacherId,
+        teacher_name: teacherName,
+        institution_id: profile?.institutionId || '',
         created_at: serverTimestamp(),
       };
 
       const classRef = await addDoc(collection(db, 'classes'), classData);
       
-      // Automatically add the creator as a teacher membership
+      // Automatically add the creator/assigned teacher as a teacher membership
       const membershipData = {
-        user_id: user.uid,
+        user_id: teacherId,
         class_id: classRef.id,
         role: 'teacher',
         joined_at: serverTimestamp(),
       };
 
-      await setDoc(doc(db, 'class_memberships', `${user.uid}_${classRef.id}`), membershipData);
-      
-      // Update local state immediately to avoid race conditions
-      setClasses(prev => [{
-        id: classRef.id,
-        name,
-        description,
-        joinCode,
-        teacherId: user.uid,
-        teacherName: user.displayName || 'Teacher',
-        createdAt: null as any // Will be updated by refresh
-      }, ...prev]);
-
-      setMemberships(prev => [{
-        id: `${user.uid}_${classRef.id}`,
-        classId: classRef.id,
-        userId: user.uid,
-        role: 'teacher',
-        joinedAt: null as any
-      }, ...prev]);
+      await setDoc(doc(db, 'class_memberships', `${teacherId}_${classRef.id}`), membershipData);
       
       await fetchUserClasses();
       return classRef.id;

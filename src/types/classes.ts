@@ -55,3 +55,24 @@ export interface Announcement {
   content: string;
   createdAt: Timestamp;
 }
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  role: 'admin' | 'teacher' | 'student';
+  institutionId?: string;
+  institutionName?: string;
+  createdAt: Timestamp | null;
+  rollNumber?: string;
+  studentName?: string;
+}
+
+export interface Institution {
+  id: string;
+  name: string;
+  adminId: string;
+  joinCode: string;
+  createdAt: Timestamp | null;
+}
+

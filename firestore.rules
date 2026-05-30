@@ -66,5 +66,17 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.author_id;
     }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Institutions collection rules
+    match /institutions/{instId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+    }
   }
 }

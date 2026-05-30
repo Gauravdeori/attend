@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Classes from "./pages/Classes";
 import ClassDetail from "./pages/ClassDetail";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -29,11 +30,19 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SidebarProvider>
-                    <div className="flex min-h-screen w-full bg-background">
+                    <div className="flex min-h-screen w-full bg-background font-sans">
                       <AppSidebar />
                       <SidebarInset className="flex-1 overflow-auto">
                         <Routes>
                           <Route path="/" element={<Index />} />
+                          <Route 
+                            path="/admin" 
+                            element={
+                              <ProtectedRoute allowedRoles={['admin']}>
+                                <AdminDashboard />
+                              </ProtectedRoute>
+                            } 
+                          />
                           <Route path="/classes" element={<Classes />} />
                           <Route path="/classes/:classId" element={<ClassDetail />} />
                           <Route path="*" element={<NotFound />} />

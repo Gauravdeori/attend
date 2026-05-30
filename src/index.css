@@ -1,60 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Student Attendance Tracker - Teal/Slate Design System */
+/* PresentIQ - Cool Light Design System */
 
 @layer base {
   :root {
-    /* Deep Obsidian Background */
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
+    /* Cool Slate Background and Dark Slate Foreground */
+    --background: 210 40% 98%; /* Slate-50 (#F8FAFC) */
+    --foreground: 222 47% 11%; /* Slate-900 (#0F172A) */
 
-    /* Slightly lighter cards for elevation */
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 98%;
+    /* Pure White Cards and Popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 240 10% 6%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Crisp White Primary for high contrast minimal look */
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 10% 4%;
+    /* Cool Teal / Cyan Primary Accent */
+    --primary: 187 92% 38%; /* Teal/Cyan-600 (#0891B2) */
+    --primary-foreground: 0 0% 100%;
 
-    /* Muted secondary */
-    --secondary: 240 10% 12%;
-    --secondary-foreground: 0 0% 98%;
+    /* Cool Muted Secondary */
+    --secondary: 210 40% 96.1%; /* Slate-100 */
+    --secondary-foreground: 222 47% 11.2%;
 
-    --muted: 240 10% 12%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 240 10% 12%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 187 92% 95%; /* Light teal/cyan tint */
+    --accent-foreground: 187 92% 20%;
 
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%; /* Red-500 (#EF4444) */
+    --destructive-foreground: 210 40% 98%;
 
-    --success: 142 60% 40%;
-    --success-foreground: 0 0% 100%;
+    --success: 142.1 76.2% 36.3%; /* Emerald-600 */
+    --success-foreground: 355.6 100% 97.3%;
 
-    --warning: 38 80% 45%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 38 92% 50%; /* Amber-500 */
+    --warning-foreground: 48 96% 8.9%;
 
-    /* Thin, barely visible borders */
-    --border: 240 10% 15%;
-    --input: 240 10% 15%;
-    --ring: 0 0% 98%;
+    /* Subtle Cool Slate Borders */
+    --border: 214.3 31.8% 91.4%; /* Slate-200 */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 187 92% 38%;
 
-    --radius: 0.5rem; /* Slightly sharper corners for minimal look */
+    --radius: 0.75rem; /* Modern rounded corners */
 
-    --sidebar-background: 240 10% 5%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 10% 4%;
-    --sidebar-accent: 240 10% 12%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 10% 12%;
-    --sidebar-ring: 0 0% 98%;
+    /* Cool Light Sidebar */
+    --sidebar-background: 210 40% 96.1%; /* Slate-100 */
+    --sidebar-foreground: 222 47% 11.2%;
+    --sidebar-primary: 187 92% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 187 92% 90%;
+    --sidebar-accent-foreground: 187 92% 20%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 187 92% 38%;
   }
 }
 
@@ -64,7 +67,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased font-sans;
   }
 }
 

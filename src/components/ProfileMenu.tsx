@@ -11,10 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Settings as SettingsIcon, Palette, Download } from 'lucide-react';
+import { User, LogOut, Settings as SettingsIcon, Download } from 'lucide-react';
 import { ProfileDialog } from './ProfileDialog';
 import { SettingsDialog } from './SettingsDialog';
-import { useTheme } from 'next-themes';
 import { usePWA } from '@/hooks/usePWA';
 
 interface ProfileMenuProps {
@@ -22,8 +21,7 @@ interface ProfileMenuProps {
 }
 
 export function ProfileMenu({ onSettingsClick }: ProfileMenuProps) {
-  const { user, signOut } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { user, profile, signOut } = useAuth();
   const { isInstallable, installApp } = usePWA();
   const [showProfile, setShowProfile] = useState(false);
 
@@ -35,57 +33,52 @@ export function ProfileMenu({ onSettingsClick }: ProfileMenuProps) {
     return 'U';
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
-
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-10 w-10 rounded-full">
             <Avatar className="h-10 w-10 transition-transform hover:scale-105 border-2 border-transparent hover:border-primary">
-              <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+              <AvatarImage src={user.photoURL || undefined} alt={profile?.displayName || user.displayName || 'User'} />
               <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                {getInitials(user.displayName, user.email)}
+                {getInitials(profile?.displayName || user.displayName, user.email)}
               </AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuContent className="w-56 bg-white border border-slate-200" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{user.displayName || 'Welcome!'}</p>
-              <p className="text-xs leading-none text-muted-foreground">
+              <p className="text-sm font-medium leading-none text-slate-800">{profile?.displayName || user.displayName || 'Welcome!'}</p>
+              <p className="text-xs leading-none text-slate-400 font-semibold mt-0.5">
+                {profile?.role ? profile.role.toUpperCase() : 'STUDENT'}
+              </p>
+              <p className="text-[10px] leading-none text-slate-400 truncate mt-0.5">
                 {user.email}
               </p>
             </div>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
+          <DropdownMenuSeparator className="bg-slate-100" />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setShowProfile(true)} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => setShowProfile(true)} className="cursor-pointer text-slate-600 hover:text-slate-900 focus:bg-slate-50">
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
-            {onSettingsClick && (
-              <DropdownMenuItem onClick={onSettingsClick} className="cursor-pointer">
+            {onSettingsClick && profile?.role === 'student' && (
+              <DropdownMenuItem onClick={onSettingsClick} className="cursor-pointer text-slate-600 hover:text-slate-900 focus:bg-slate-50">
                 <SettingsIcon className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
-              <Palette className="mr-2 h-4 w-4" />
-              <span>Toggle Theme</span>
-            </DropdownMenuItem>
             {isInstallable && (
-              <DropdownMenuItem onClick={installApp} className="cursor-pointer text-primary font-bold">
+              <DropdownMenuItem onClick={installApp} className="cursor-pointer text-primary font-bold hover:text-primary focus:bg-primary/5">
                 <Download className="mr-2 h-4 w-4" />
                 <span>Install App</span>
               </DropdownMenuItem>
             )}
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
+          <DropdownMenuSeparator className="bg-slate-100" />
+          <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive font-semibold">
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>
           </DropdownMenuItem>
